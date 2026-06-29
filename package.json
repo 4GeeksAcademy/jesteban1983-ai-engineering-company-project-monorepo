@@ -1,0 +1,18 @@
+{
+  "name": "trackflow-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "uis/*",
+    "services/*"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit --project tsconfig.json"
+  },
+  "devDependencies": {
+    "eslint": "^10.6.0",
+    "prettier": "^3.9.3",
+    "typescript": "^6.0.3"
+  }
+}
