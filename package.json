@@ -3,16 +3,13 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "uis/*",
-    "services/*"
+    "uis/*"
   ],
   "scripts": {
-    "lint": "eslint .",
-    "type-check": "tsc --noEmit --project tsconfig.json"
+    "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "eslint": "^10.6.0",
-    "prettier": "^3.9.3",
+    "@types/node": "^26.0.1",
     "typescript": "^6.0.3"
   }
 }
