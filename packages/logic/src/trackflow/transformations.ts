@@ -16,8 +16,9 @@ import {
   Product,
   ProductCategory,
   Shipment,
+  ShipmentPriority,
   ShipmentStatus,
-} from "../../../../temp-repo/Jesteban1983-TrackFlow/src/types";
+} from "./contracts";
 
 // ============================================================================
 // CÁLCULOS DE COSTOS Y SCORING DE TRANSPORTISTAS
@@ -58,13 +59,13 @@ export function calculateShippingCost(
   
   // Aplicar recargo por prioridad
 
-  const priorityMultiplier = {
-   Standard: 1.0,    // +0% → multiplicar por 1 (sin cambio)
-   Express: 1.3,     // +30%
-   "Same-day": 1.6,  // +60%
-   };
+  const priorityMultiplier: Record<ShipmentPriority, number> = {
+    Standard: 1.0, // +0% -> multiplicar por 1 (sin cambio)
+    Express: 1.3, // +30%
+    "Same-day": 1.6, // +60%
+  };
 
-const totalCost = subtotal * priorityMultiplier[shipment.priority];
+  const totalCost = subtotal * priorityMultiplier[shipment.priority];
   
   // Redondear a 2 decimales
   return Math.round(totalCost * 100) / 100;
@@ -350,7 +351,7 @@ export function findTopCarriers(
   
   // Convertir a array y ordenar por count descendente
   const sorted = Object.entries(carrierCounts)
-    .map(([carrier, count]) => ({ carrier, count }))
+    .map(([carrier, count]): CarrierUsage => ({ carrier, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, topN);
   

@@ -7,7 +7,7 @@
  */
 
 // Tipos
-export * from "../../../../temp-repo/Jesteban1983-TrackFlow/src/types";
+export * from "./contracts";
 
 // Colecciones
 export * from "./collections";

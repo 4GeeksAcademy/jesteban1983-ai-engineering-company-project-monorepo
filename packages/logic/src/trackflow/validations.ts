@@ -12,7 +12,7 @@ import {
   Product,
   Shipment,
   ValidationResult,
-} from "../../../../temp-repo/Jesteban1983-TrackFlow/src/types";
+} from "./contracts";
 
 // ============================================================================
 // VALIDACIONES DE PRODUCTO

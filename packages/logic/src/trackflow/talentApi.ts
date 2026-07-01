@@ -1,4 +1,4 @@
-import { Candidate, CandidateInput, Note } from '../../../../temp-repo/Jesteban1983-TrackFlow/src/types/talent';
+import { Candidate, CandidateInput, Note } from "./contracts";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://playground.4geeks.com/tracker/api/v1';
 

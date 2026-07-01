@@ -22,6 +22,7 @@ import {
 // ============================================================================
 
 const testProduct: Product = {
+  id: "PRD-LAPTOP-001",
   sku: "LAPTOP-DELL-15",
   name: "Laptop Dell 15 pulgadas",
   category: "Electronics",
