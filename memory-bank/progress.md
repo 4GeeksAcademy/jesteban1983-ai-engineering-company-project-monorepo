@@ -9,4 +9,5 @@
 - [x] Backoffice: app interna con layout propio y vista inicial operativa.
 - [x] Integracion Hito 2: script de pruebas de fuego reutilizable importado desde `packages/logic` y visible en UI.
 - [x] Verificacion tecnica: `npm run type-check` y builds de `uis/website` + `uis/backoffice` sin errores.
+- [x] Hito 4 incidencias: script Python CLI, API FastAPI y UI de backoffice para analisis y exportacion CSV con metricas validadas (100/95/5 y satisfaccion 3.06).
 
