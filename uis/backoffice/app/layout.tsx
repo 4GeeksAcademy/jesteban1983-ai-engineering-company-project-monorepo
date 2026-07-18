@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TrackFlow Website",
-  description: "Plataforma publica de TrackFlow para operaciones logisticas de ultima milla.",
+  title: "TrackFlow Backoffice",
+  description: "Aplicacion interna de TrackFlow para gestion de inventario y operaciones.",
 };
 
 export default function RootLayout({
