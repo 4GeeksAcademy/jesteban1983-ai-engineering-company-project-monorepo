@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ExportButton } from "./components/ExportButton";
 import { FileUploader } from "./components/FileUploader";
 import { IncidentsAnalysisResult, ResultsSummary } from "./components/ResultsSummary";
@@ -10,11 +10,6 @@ export default function IncidentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<IncidentsAnalysisResult | null>(null);
 
-  const apiBaseUrl = useMemo(() => {
-    const fromEnv = process.env.NEXT_PUBLIC_INCIDENTS_API_BASE;
-    return fromEnv && fromEnv.trim().length > 0 ? fromEnv.trim() : "http://localhost:8000";
-  }, []);
-
   const analyzeFile = async (file: File) => {
     setLoading(true);
     setError(null);
@@ -23,7 +18,7 @@ export default function IncidentsPage() {
       const body = new FormData();
       body.append("file", file);
 
-      const response = await fetch(`${apiBaseUrl}/api/incidents/analyze`, {
+      const response = await fetch("/api/incidents/analyze", {
         method: "POST",
         body,
       });
@@ -58,7 +53,7 @@ export default function IncidentsPage() {
               Sube un archivo CSV, audita la calidad de datos y consulta metricas operativas en segundos.
             </p>
           </div>
-          <ExportButton apiBaseUrl={apiBaseUrl} disabled={!result} />
+          <ExportButton disabled={!result} />
         </div>
       </section>
 

@@ -2,12 +2,11 @@
 
 interface ExportButtonProps {
   disabled?: boolean;
-  apiBaseUrl: string;
 }
 
-export function ExportButton({ disabled, apiBaseUrl }: ExportButtonProps) {
+export function ExportButton({ disabled }: ExportButtonProps) {
   const handleDownload = async () => {
-    const response = await fetch(`${apiBaseUrl}/api/incidents/results/export`);
+    const response = await fetch("/api/incidents/results/export");
 
     if (!response.ok) {
       throw new Error("No fue posible exportar el archivo.");
