@@ -20,6 +20,7 @@ probar y modificar sin romper lo demás.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -28,11 +29,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from database import suppliers_table, Supplier as SupplierQuery
 from dependencies.auth_deps import get_current_user
 from models import Supplier, SupplierCreate, RateUpdate, StatusUpdate
+from core.errors import safe_error, log_and_raise
 
 router = APIRouter(
     prefix="/suppliers",
-    tags=["suppliers"],   # agrupa los endpoints en Swagger UI
+    tags=["suppliers"],
 )
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -74,7 +78,6 @@ def create_supplier(
     data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     # Convertir Enums a sus valores string para guardar en TinyDB
-    # TinyDB no conoce los Enum de Python — necesita strings normales
     data["status"] = data["status"].value if hasattr(data["status"], "value") else data["status"]
     data["country"] = data["country"].value if hasattr(data["country"], "value") else data["country"]
     data["currency"] = data["currency"].value if hasattr(data["currency"], "value") else data["currency"]
@@ -82,7 +85,12 @@ def create_supplier(
         c.value if hasattr(c, "value") else c for c in data["categories"]
     ]
 
-    doc_id = suppliers_table.insert(data)
+    try:
+        doc_id = suppliers_table.insert(data)
+    except Exception as exc:
+        logger.exception("Error al insertar proveedor")
+        raise safe_error(500, "Error al guardar el proveedor. Intenta de nuevo.")
+
     return _with_id(doc_id, data)
 
 
@@ -142,13 +150,14 @@ def get_supplier(
     Devuelve el detalle de un proveedor por su ID de TinyDB.
     Si el ID no existe → 404 (no inventamos datos).
     """
-    doc = suppliers_table.get(doc_id=supplier_id)
+    try:
+        doc = suppliers_table.get(doc_id=supplier_id)
+    except Exception as exc:
+        logger.exception("Error al buscar proveedor %s", supplier_id)
+        raise safe_error(503, "Servicio temporalmente no disponible.")
 
     if doc is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Proveedor con id {supplier_id} no encontrado."
-        )
+        raise safe_error(404, f"Proveedor con id {supplier_id} no encontrado.")
 
     return _with_id(supplier_id, dict(doc))
 
@@ -173,24 +182,28 @@ def update_rate(
     Pydantic valida que rate_per_shipment > 0 antes de llegar aquí.
     Si el proveedor no existe → 404.
     """
-    doc = suppliers_table.get(doc_id=supplier_id)
+    try:
+        doc = suppliers_table.get(doc_id=supplier_id)
+    except Exception as exc:
+        logger.exception("Error al buscar proveedor %s", supplier_id)
+        raise safe_error(503, "Servicio temporalmente no disponible.")
 
     if doc is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Proveedor con id {supplier_id} no encontrado."
+        raise safe_error(404, f"Proveedor con id {supplier_id} no encontrado.")
+
+    try:
+        suppliers_table.update(
+            {
+                "rate_per_shipment": payload.rate_per_shipment,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
+            doc_ids=[supplier_id],
         )
+        updated_doc = suppliers_table.get(doc_id=supplier_id)
+    except Exception as exc:
+        logger.exception("Error al actualizar tarifa del proveedor %s", supplier_id)
+        raise safe_error(500, "Error al actualizar la tarifa. Intenta de nuevo.")
 
-    # Actualizar tarifa y timestamp en un solo update de TinyDB
-    suppliers_table.update(
-        {
-            "rate_per_shipment": payload.rate_per_shipment,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        },
-        doc_ids=[supplier_id],
-    )
-
-    updated_doc = suppliers_table.get(doc_id=supplier_id)
     return _with_id(supplier_id, dict(updated_doc))
 
 
@@ -214,22 +227,27 @@ def update_status(
     alta tasa de incidencias, no eliminarlos — el historial de
     suspensiones es información operativa relevante.
     """
-    doc = suppliers_table.get(doc_id=supplier_id)
+    try:
+        doc = suppliers_table.get(doc_id=supplier_id)
+    except Exception as exc:
+        logger.exception("Error al buscar proveedor %s", supplier_id)
+        raise safe_error(503, "Servicio temporalmente no disponible.")
 
     if doc is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Proveedor con id {supplier_id} no encontrado."
-        )
+        raise safe_error(404, f"Proveedor con id {supplier_id} no encontrado.")
 
     new_status = payload.status.value if hasattr(payload.status, "value") else payload.status
 
-    suppliers_table.update(
-        {"status": new_status},
-        doc_ids=[supplier_id],
-    )
+    try:
+        suppliers_table.update(
+            {"status": new_status},
+            doc_ids=[supplier_id],
+        )
+        updated_doc = suppliers_table.get(doc_id=supplier_id)
+    except Exception as exc:
+        logger.exception("Error al actualizar estado del proveedor %s", supplier_id)
+        raise safe_error(500, "Error al actualizar el estado. Intenta de nuevo.")
 
-    updated_doc = suppliers_table.get(doc_id=supplier_id)
     return _with_id(supplier_id, dict(updated_doc))
 
 
@@ -250,13 +268,19 @@ def delete_supplier(
     Nota del tech lead: preferir suspender sobre eliminar cuando
     hay historial operativo. DELETE es para registros erróneos.
     """
-    doc = suppliers_table.get(doc_id=supplier_id)
+    try:
+        doc = suppliers_table.get(doc_id=supplier_id)
+    except Exception as exc:
+        logger.exception("Error al buscar proveedor %s", supplier_id)
+        raise safe_error(503, "Servicio temporalmente no disponible.")
 
     if doc is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Proveedor con id {supplier_id} no encontrado."
-        )
+        raise safe_error(404, f"Proveedor con id {supplier_id} no encontrado.")
 
-    suppliers_table.remove(doc_ids=[supplier_id])
+    try:
+        suppliers_table.remove(doc_ids=[supplier_id])
+    except Exception as exc:
+        logger.exception("Error al eliminar proveedor %s", supplier_id)
+        raise safe_error(500, "Error al eliminar el proveedor. Intenta de nuevo.")
+
     return {"deleted": supplier_id, "message": "Proveedor eliminado correctamente."}
