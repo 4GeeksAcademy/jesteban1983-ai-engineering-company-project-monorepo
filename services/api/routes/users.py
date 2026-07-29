@@ -13,8 +13,11 @@ Rutas:
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from core.errors import safe_error, log_and_raise
 from dependencies.auth_deps import get_current_user
 from models.profile_models import ProfileCreate
 from models.user_models import UserCreate, UserResponse, UserUpdate
@@ -27,6 +30,8 @@ from services.user_service import (
 )
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -51,22 +56,24 @@ def register_user(user_data: UserCreate):
         409: Si el email ya está registrado.
         422: Si los datos no pasan validación Pydantic.
     """
-    # Extraer datos de profile si vienen en el payload
-    profile_data = None
-    if hasattr(user_data, 'name') or hasattr(user_data, 'phone') or hasattr(user_data, 'address'):
-        profile_data = ProfileCreate(
-            name=getattr(user_data, 'name', None),
-            phone=getattr(user_data, 'phone', None),
-            address=getattr(user_data, 'address', None),
-        )
+    try:
+        user_data_dict = user_data.model_dump() if hasattr(user_data, 'model_dump') else {}
+        profile_data = None
+        profile_fields = {k: v for k, v in user_data_dict.items() if k in ('name', 'phone', 'address')}
+        if any(profile_fields.values()):
+            profile_data = ProfileCreate(**profile_fields)
+    except Exception as exc:
+        logger.exception("Error al extraer datos de perfil durante registro")
+        raise safe_error(422, "Datos de perfil inválidos.")
 
     try:
         user = create_user(user_data, profile_data)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        )
+        logger.warning("Registro duplicado o inválido: %s", e)
+        raise safe_error(409, str(e))
+    except Exception as exc:
+        logger.exception("Error al crear usuario")
+        raise safe_error(500, "Error interno al registrar usuario.")
 
     return user
 
@@ -89,7 +96,11 @@ def list_users(current_user: dict = Depends(get_current_user)):
     Retorna:
         Lista de UserResponse.
     """
-    return get_all_users()
+    try:
+        return get_all_users()
+    except Exception as exc:
+        logger.exception("Error al listar usuarios")
+        raise safe_error(500, "Error interno al obtener usuarios.")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -112,12 +123,15 @@ def get_user(user_id: int, current_user: dict = Depends(get_current_user)):
     Raises:
         404: Si el usuario no existe.
     """
-    user = get_user_by_id(user_id)
+    try:
+        user = get_user_by_id(user_id)
+    except Exception as exc:
+        logger.exception("Error al obtener usuario %s", user_id)
+        raise safe_error(500, "Error interno.")
+
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Usuario con id {user_id} no encontrado.",
-        )
+        raise safe_error(404, f"Usuario con id {user_id} no encontrado.")
+
     return user
 
 
@@ -150,17 +164,17 @@ def update_user_endpoint(
     """
     # Verificar permisos: solo owner o admin
     if current_user["id"] != user_id and current_user.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos para actualizar este usuario.",
-        )
+        raise safe_error(403, "No tienes permisos para actualizar este usuario.")
 
-    user = update_user(user_id, update_data)
+    try:
+        user = update_user(user_id, update_data)
+    except Exception as exc:
+        logger.exception("Error al actualizar usuario %s", user_id)
+        raise safe_error(500, "Error interno al actualizar usuario.")
+
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Usuario con id {user_id} no encontrado.",
-        )
+        raise safe_error(404, f"Usuario con id {user_id} no encontrado.")
+
     return user
 
 
@@ -191,16 +205,15 @@ def delete_user_endpoint(
     """
     # Verificar permisos: solo owner o admin
     if current_user["id"] != user_id and current_user.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos para eliminar este usuario.",
-        )
+        raise safe_error(403, "No tienes permisos para eliminar este usuario.")
 
-    deleted = delete_user(user_id)
+    try:
+        deleted = delete_user(user_id)
+    except Exception as exc:
+        logger.exception("Error al eliminar usuario %s", user_id)
+        raise safe_error(500, "Error interno al eliminar usuario.")
+
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Usuario con id {user_id} no encontrado.",
-        )
+        raise safe_error(404, f"Usuario con id {user_id} no encontrado.")
 
     return {"message": "Usuario y perfil eliminados correctamente"}
