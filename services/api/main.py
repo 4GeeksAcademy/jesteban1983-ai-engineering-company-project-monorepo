@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import csv
+import logging
 from io import StringIO
-
-import traceback
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
@@ -17,7 +16,14 @@ from routes.users import router as users_router
 from routes.profiles import router as profiles_router
 from routes.auth import router as auth_router
 from routes.incidents import router as incidents_router
+from schemas.error import ErrorResponse
 
+# ── Configurar logging estructurado ────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+logger = logging.getLogger("trackflow")
 
 
 class Settings(BaseSettings):
@@ -42,21 +48,40 @@ app.add_middleware(
 
 
 # ─────────────────────────────────────────────────────────────
-# Manejador global de excepciones
+# Manejadores globales de excepciones
 # NUNCA se devuelven stack traces al cliente (Checklist #16)
 # ─────────────────────────────────────────────────────────────
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Captura errores de validación Pydantic y devuelve un 400 identificando el campo problemático."""
+    """Captura errores de validación Pydantic y devuelve un 422."""
     errors = []
     for err in exc.errors():
         field = " → ".join(str(loc) for loc in err.get("loc", []))
         msg = err.get("msg", "Error de validación")
         errors.append(f"{field}: {msg}" if field else msg)
+    logger.warning("ValidationError en %s %s: %s", request.method, request.url.path, errors)
+    return JSONResponse(
+        status_code=422,
+        content=ErrorResponse(
+            detail="Datos inválidos. Revisa los campos marcados.",
+            error_code="VALIDATION_ERROR",
+            status_code=422,
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    """Captura ValueError → 400."""
+    logger.warning("ValueError en %s %s: %s", request.method, request.url.path, str(exc))
     return JSONResponse(
         status_code=400,
-        content={"detail": errors},
+        content=ErrorResponse(
+            detail="Solicitud inválida.",
+            error_code="INVALID_REQUEST",
+            status_code=400,
+        ).model_dump(),
     )
 
 
@@ -72,12 +97,30 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Captura cualquier excepción no controlada y devuelve 500 sin stack trace."""
-    # Log interno para depuración (no se filtra al cliente)
-    print(f"[ERROR] {request.method} {request.url.path}: {exc}")
-    traceback.print_exc()  # Solo en consola, no en respuesta
+    logger.exception(
+        "Excepción no capturada en %s %s", request.method, request.url.path,
+        exc_info=exc,
+    )
     return JSONResponse(
         status_code=500,
-        content={"detail": "Error interno del servidor"},
+        content=ErrorResponse(
+            detail="Error interno del servidor. Intenta de nuevo.",
+            error_code="INTERNAL_ERROR",
+            status_code=500,
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: Exception):
+    """404 genérico → JSON estructurado."""
+    return JSONResponse(
+        status_code=404,
+        content=ErrorResponse(
+            detail="Recurso no encontrado.",
+            error_code="NOT_FOUND",
+            status_code=404,
+        ).model_dump(),
     )
 
 # Registrar el router de proveedores (Milestone 9)

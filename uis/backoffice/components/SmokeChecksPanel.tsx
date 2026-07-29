@@ -5,7 +5,7 @@ interface SmokeChecksPanelProps {
 }
 
 export function SmokeChecksPanel({ report }: SmokeChecksPanelProps) {
-  const passedChecks = report.checks.filter((check) => check.passed).length;
+  const passedChecks = report?.checks?.filter((check) => check.passed)?.length ?? 0;
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
@@ -19,20 +19,20 @@ export function SmokeChecksPanel({ report }: SmokeChecksPanelProps) {
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs uppercase tracking-wide text-slate-500">Checks aprobados</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">
-            {passedChecks}/{report.checks.length}
+            {passedChecks}/{report?.checks?.length ?? 0}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs uppercase tracking-wide text-slate-500">Costo envio</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">${report.shippingCostUSD}</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">${report?.shippingCostUSD ?? 0}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs uppercase tracking-wide text-slate-500">Score carrier</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{report.carrierScore}/100</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">{report?.carrierScore ?? 0}/100</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs uppercase tracking-wide text-slate-500">Mejor carrier</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{report.bestCarrierName}</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">{report?.bestCarrierName ?? "—"}</p>
         </div>
       </div>
 
@@ -46,7 +46,7 @@ export function SmokeChecksPanel({ report }: SmokeChecksPanelProps) {
             </tr>
           </thead>
           <tbody>
-            {report.checks.map((check) => (
+            {report?.checks?.map((check) => (
               <tr key={check.id} className="border-b border-slate-100 align-top">
                 <td className="py-3 pr-4 font-medium text-slate-900">{check.title}</td>
                 <td className="py-3 pr-4">

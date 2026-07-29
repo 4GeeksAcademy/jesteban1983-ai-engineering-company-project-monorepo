@@ -109,31 +109,45 @@ def _print_report(source_file: str, result: dict) -> None:
 
 
 def _export_results(result: dict, target_path: Path) -> None:
-    rows = build_export_rows(result)
-    with target_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle)
-        writer.writerows(rows)
+    try:
+        rows = build_export_rows(result)
+        with target_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerows(rows)
+    except Exception as exc:
+        print(f"Error al exportar resultados: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print("Usage: python scripts/analyze.py <csv_file_path>")
+        print("Usage: python scripts/analyze.py <csv_file_path>", file=sys.stderr)
         return 1
 
     source_path = Path(sys.argv[1])
     if not source_path.exists() or not source_path.is_file():
-        print(f"Error: file not found -> {source_path}")
+        print(f"Error: archivo no encontrado: {source_path}", file=sys.stderr)
         return 1
 
     try:
         rows = parse_csv_file(str(source_path))
+    except Exception as exc:
+        print(f"Error al leer archivo CSV: {exc}", file=sys.stderr)
+        return 1
+
+    try:
         result = analyze_incidents(rows)
-    except Exception as exc:  # noqa: BLE001
-        print(f"Error: {exc}")
+    except Exception as exc:
+        print(f"Error al analizar incidencias: {exc}", file=sys.stderr)
         return 1
 
     _print_report(source_path.name, result)
-    decision = input("Export results to CSV? [y / n]: ").strip().lower()
+
+    try:
+        decision = input("Export results to CSV? [y / n]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print("\nExportacion cancelada.")
+        return 0
 
     if decision in {"y", "s"}:
         output_path = Path("results.csv")

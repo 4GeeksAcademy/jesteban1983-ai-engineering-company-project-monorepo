@@ -14,6 +14,7 @@ Seguridad:
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -23,6 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from tinydb import TinyDB, Query as TinyQuery
 
 from dependencies.auth_deps import get_current_user
+from core.errors import safe_error, log_and_raise
 from models import IncidentCreate, IncidentUpdateStatus, IncidentResponse, SummaryResponse
 from models.incident import (
     STATUS_TRANSITIONS,
@@ -37,6 +39,8 @@ from models.incident import (
 INCIDENTS_DB_PATH = "incidentes_db.json"
 
 router = APIRouter(prefix="/api/incidents", tags=["incidents"])
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -94,8 +98,13 @@ def create_incident(
     Retorna:
         IncidentResponse con todos los datos de la incidencia creada.
     """
-    table = _get_incidents_table()
-    new_id = _next_id(table)
+    try:
+        table = _get_incidents_table()
+        new_id = _next_id(table)
+    except Exception as exc:
+        logger.exception("Error al acceder a la base de datos de incidencias")
+        raise safe_error(503, "Servicio temporalmente no disponible.")
+
     now = datetime.now(timezone.utc).isoformat()
 
     incident_dict = {
@@ -110,7 +119,12 @@ def create_incident(
         "updated_at": now,
     }
 
-    table.insert(incident_dict)
+    try:
+        table.insert(incident_dict)
+    except Exception as exc:
+        logger.exception("Error al insertar incidencia en la base de datos")
+        raise safe_error(500, "Error al guardar la incidencia. Intenta de nuevo.")
+
     return _doc_to_response(incident_dict)
 
 
@@ -134,8 +148,12 @@ def list_incidents(
     Filtros disponibles: status, category, origin, branch.
     Ordenación: sort_by (campo) y sort_order (asc/desc).
     """
-    table = _get_incidents_table()
-    docs = table.all()
+    try:
+        table = _get_incidents_table()
+        docs = table.all()
+    except Exception as exc:
+        logger.exception("Error al listar incidencias")
+        raise safe_error(503, "Servicio temporalmente no disponible.")
 
     # Filtros
     if status:
@@ -171,8 +189,12 @@ def get_incidents_summary(
       - origin: customer / branch / internal
       - branch: todas las sedes válidas
     """
-    table = _get_incidents_table()
-    docs = table.all()
+    try:
+        table = _get_incidents_table()
+        docs = table.all()
+    except Exception as exc:
+        logger.exception("Error al obtener resumen de incidencias")
+        raise safe_error(503, "Servicio temporalmente no disponible.")
 
     # Inicializar contadores con todas las opciones válidas
     by_status: dict[str, int] = {s: 0 for s in sorted(VALID_STATUSES)}
@@ -224,15 +246,16 @@ def get_incident(
     Raises:
         404: Si la incidencia no existe.
     """
-    table = _get_incidents_table()
-    Incident = TinyQuery()
-    doc = table.get(Incident.incident_id == incident_id)
+    try:
+        table = _get_incidents_table()
+        Incident = TinyQuery()
+        doc = table.get(Incident.incident_id == incident_id)
+    except Exception as exc:
+        logger.exception("Error al buscar incidencia %s", incident_id)
+        raise safe_error(503, "Servicio temporalmente no disponible.")
 
     if not doc:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Incidencia #{incident_id} no encontrada",
-        )
+        raise safe_error(404, f"Incidencia #{incident_id} no encontrada.")
 
     return _doc_to_response(doc)
 
@@ -260,15 +283,16 @@ def update_incident_status(
         404: Si la incidencia no existe.
         400: Si la transición no está permitida.
     """
-    table = _get_incidents_table()
-    Incident = TinyQuery()
-    doc = table.get(Incident.incident_id == incident_id)
+    try:
+        table = _get_incidents_table()
+        Incident = TinyQuery()
+        doc = table.get(Incident.incident_id == incident_id)
+    except Exception as exc:
+        logger.exception("Error al buscar incidencia %s para actualizar estado", incident_id)
+        raise safe_error(503, "Servicio temporalmente no disponible.")
 
     if not doc:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Incidencia #{incident_id} no encontrada",
-        )
+        raise safe_error(404, f"Incidencia #{incident_id} no encontrada.")
 
     current_status = doc.get("status", "open")
     new_status = data.status
@@ -276,20 +300,20 @@ def update_incident_status(
     # Validar transición
     allowed = STATUS_TRANSITIONS.get(current_status, set())
     if new_status not in allowed:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Transición no permitida: de '{current_status}' a '{new_status}'. "
-                f"Transiciones válidas desde '{current_status}': "
-                f"{', '.join(sorted(allowed)) if allowed else 'ninguna (estado final)'}"
-            ),
+        raise safe_error(
+            400,
+            f"Transición no permitida de '{current_status}' a '{new_status}'.",
         )
 
-    now = datetime.now(timezone.utc).isoformat()
-    table.update(
-        {"status": new_status, "updated_at": now},
-        Incident.incident_id == incident_id,
-    )
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        table.update(
+            {"status": new_status, "updated_at": now},
+            Incident.incident_id == incident_id,
+        )
+    except Exception as exc:
+        logger.exception("Error al actualizar estado de incidencia %s", incident_id)
+        raise safe_error(500, "Error al actualizar el estado. Intenta de nuevo.")
 
     doc["status"] = new_status
     doc["updated_at"] = now

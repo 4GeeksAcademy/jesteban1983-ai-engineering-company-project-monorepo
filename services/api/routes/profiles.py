@@ -14,13 +14,18 @@ Protección:
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from dependencies.auth_deps import get_current_user
 from models.profile_models import ProfileResponse, ProfileUpdate
 from services.user_service import get_profile_by_user_id, update_profile
+from core.errors import safe_error, log_and_raise
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -43,12 +48,15 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
     Raises:
         404: Si el perfil no existe.
     """
-    profile = get_profile_by_user_id(current_user["id"])
+    try:
+        profile = get_profile_by_user_id(current_user["id"])
+    except Exception as exc:
+        logger.exception("Error al obtener perfil del usuario %s", current_user.get("id"))
+        raise safe_error(500, "Error interno. Intenta de nuevo.")
+
     if profile is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Perfil no encontrado.",
-        )
+        raise safe_error(404, "Perfil no encontrado.")
+
     return profile
 
 
@@ -77,10 +85,13 @@ def update_my_profile(
     Raises:
         404: Si el perfil no existe.
     """
-    profile = update_profile(current_user["id"], profile_data)
+    try:
+        profile = update_profile(current_user["id"], profile_data)
+    except Exception as exc:
+        logger.exception("Error al actualizar perfil del usuario %s", current_user.get("id"))
+        raise safe_error(500, "Error interno. Intenta de nuevo.")
+
     if profile is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Perfil no encontrado.",
-        )
+        raise safe_error(404, "Perfil no encontrado.")
+
     return profile
