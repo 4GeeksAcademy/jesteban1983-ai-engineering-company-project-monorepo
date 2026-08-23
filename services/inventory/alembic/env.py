@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # ============================================
 # Alembic necesita conocer TODOS los modelos para generar migraciones.
 # Importar Base es suficiente si todos los modelos heredan de ella.
-from app.database import Base
+from app.base import Base
 from app.models import Item, Movement  # Forzar importación de modelos
 
 # Configuración de logging de Alembic (lee la sección [loggers] de alembic.ini)

@@ -208,15 +208,20 @@ class InventoryCRUD:
         if item is None:
             return None
 
-        # 2. Actualizar solo los campos que vienen en data
-        # model_dump(exclude_unset=True) devuelve solo los campos que el usuario envió
+        # 2. Validar SKU único si se está actualizando el SKU
         update_data = data.model_dump(exclude_unset=True)
-        
+        if "sku" in update_data and update_data["sku"] != item.sku:
+            existing = await self.get_item_by_sku(db, update_data["sku"])
+            if existing is not None:
+                raise ValueError(f"Ya existe un item con SKU '{update_data['sku']}'")
+
+        # 3. Actualizar solo los campos que vienen en data
+        # model_dump(exclude_unset=True) devuelve solo los campos que el usuario envió
         for field, value in update_data.items():
             # setattr(obj, "name", value) = obj.name = value
             setattr(item, field, value)
 
-        # 3. Guardar cambios
+        # 4. Guardar cambios
         await db.commit()
         await db.refresh(item)
 

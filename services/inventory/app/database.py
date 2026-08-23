@@ -18,8 +18,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker, # Fábrica que crea sesiones asíncronas
     create_async_engine, # Crea el motor de base de datos asíncrono
 )
-from sqlalchemy.orm import DeclarativeBase
-
+from app.base import Base
 from app.config import settings  # Importamos la configuración con DATABASE_URL
 
 
@@ -98,15 +97,6 @@ AsyncSessionFactory = async_sessionmaker(
     class_=AsyncSession,       # Usa sesiones asíncronas
     expire_on_commit=False,    # No expirar objetos tras commit
 )
-
-
-# ============================================
-# Clase Base para los modelos ORM
-# ============================================
-# Todos nuestros modelos (Item, Movement) heredarán de esta clase.
-# DeclarativeBase es la clase base de SQLAlchemy 2.0 para crear modelos.
-class Base(DeclarativeBase):
-    pass
 
 
 # ============================================

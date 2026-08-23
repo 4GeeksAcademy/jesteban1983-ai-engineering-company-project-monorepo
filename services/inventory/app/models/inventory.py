@@ -24,7 +24,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Importamos la Base que creamos en database.py
-from app.database import Base
+from app.base import Base
 
 
 class Item(Base):

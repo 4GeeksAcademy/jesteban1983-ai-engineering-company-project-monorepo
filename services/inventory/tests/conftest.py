@@ -19,7 +19,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from app.database import Base, get_db
+from app.base import Base
+from app.database import get_db
 from app.main import app
 
 # ============================================

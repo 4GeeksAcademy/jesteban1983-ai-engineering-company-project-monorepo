@@ -8,6 +8,9 @@
 # --reload significa que se reinicia automáticamente cuando cambia el código
 # (solo para desarrollo)
 
+import logging
+import time
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -16,6 +19,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings  # Configuración (variables de entorno)
 from app.database import check_db_connection, init_db  # Función para crear tablas + healthcheck
 from app.routers.inventory import router as inventory_router
+
+
+# ============================================
+# Configuración de logging
+# ============================================
+logger = logging.getLogger("inventory.api")
 
 
 # ============================================

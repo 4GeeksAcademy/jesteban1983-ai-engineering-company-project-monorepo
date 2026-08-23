@@ -11,7 +11,6 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
@@ -35,7 +34,7 @@ class ItemBase(BaseModel):
         ..., min_length=1, max_length=200,
         description="Nombre del producto",
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None, max_length=1000,
         description="Descripción del producto (opcional)",
     )
@@ -82,28 +81,31 @@ class ItemUpdate(BaseModel):
     
     Ej: PUT /items/1 con {"price": 10.99} → solo cambia el precio
     """
-    name: Optional[str] = Field(
+    sku: str | None = Field(
+        default=None, min_length=3, max_length=50,
+    )
+    name: str | None = Field(
         default=None, min_length=1, max_length=200,
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None, max_length=1000,
     )
-    quantity: Optional[int] = Field(
+    quantity: int | None = Field(
         default=None, ge=0,
     )
-    price: Optional[Decimal] = Field(
+    price: Decimal | None = Field(
         default=None, gt=0, max_digits=10, decimal_places=2,
     )
-    category: Optional[str] = Field(
+    category: str | None = Field(
         default=None, max_length=100,
     )
-    warehouse: Optional[str] = Field(
+    warehouse: str | None = Field(
         default=None, max_length=100,
     )
-    min_stock: Optional[int] = Field(
+    min_stock: int | None = Field(
         default=None, ge=0,
     )
-    is_active: Optional[bool] = Field(default=None)
+    is_active: bool | None = Field(default=None)
 
 
 class ItemOut(ItemBase):

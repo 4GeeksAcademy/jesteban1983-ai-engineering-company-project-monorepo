@@ -6,7 +6,7 @@
 # También importa los modelos para que estén disponibles
 # desde "from app.models import Item, Movement"
 
-from app.database import Base  # Base para modelos SQLAlchemy
+from app.base import Base  # Base para modelos SQLAlchemy
 from app.models.inventory import Item  # Modelo de inventario
 from app.models.movement import Movement  # Modelo de movimientos
 

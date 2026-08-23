@@ -3,8 +3,6 @@ import {
   calculateTotalInventoryValue,
   filterLowStockProducts,
   findTopCarriers,
-  Product,
-  Shipment,
 } from "@trackflow/logic";
 import { CtaSection } from "../components/CtaSection";
 import { HeroSection } from "../components/HeroSection";
@@ -13,8 +11,11 @@ import { OperationsFlow } from "../components/OperationsFlow";
 import { ProductCatalog } from "../components/ProductCatalog";
 import { ServiceGrid } from "../components/ServiceGrid";
 import { TestimonialsSection } from "../components/TestimonialsSection";
+import { fetchInventoryItems, apiItemToProduct } from "../lib/inventory-api";
 
-const products: Product[] = [
+import type { Product, Shipment } from "@trackflow/logic";
+
+const fallbackProducts: Product[] = [
   {
     id: "prd-001",
     sku: "ELEC-LAP-15",
@@ -29,51 +30,9 @@ const products: Product[] = [
     warehouse: "Zaragoza",
     status: "Low stock",
   },
-  {
-    id: "prd-002",
-    sku: "HOM-ASP-ROBO",
-    name: "Aspiradora robot",
-    category: "Home",
-    weightKg: 3.2,
-    dimensions: { lengthCm: 34, widthCm: 34, heightCm: 10 },
-    stockQuantity: 6,
-    minStockThreshold: 8,
-    unitCostUSD: 420,
-    isFragile: true,
-    warehouse: "Los Angeles",
-    status: "Low stock",
-  },
-  {
-    id: "prd-003",
-    sku: "COS-SKIN-SET",
-    name: "Skin care kit",
-    category: "Cosmetics",
-    weightKg: 0.7,
-    dimensions: { lengthCm: 22, widthCm: 16, heightCm: 8 },
-    stockQuantity: 60,
-    minStockThreshold: 20,
-    unitCostUSD: 48,
-    isFragile: false,
-    warehouse: "Zaragoza",
-    status: "Active",
-  },
-  {
-    id: "prd-004",
-    sku: "FAS-SNE-URB",
-    name: "Urban sneakers",
-    category: "Fashion",
-    weightKg: 0.9,
-    dimensions: { lengthCm: 30, widthCm: 20, heightCm: 12 },
-    stockQuantity: 34,
-    minStockThreshold: 15,
-    unitCostUSD: 79,
-    isFragile: false,
-    warehouse: "Los Angeles",
-    status: "Active",
-  },
 ];
 
-const shipments: Shipment[] = [
+const fallbackShipments: Shipment[] = [
   {
     id: "sh-1001",
     sku: "ELEC-LAP-15",
@@ -86,33 +45,21 @@ const shipments: Shipment[] = [
     status: "In transit",
     createdAt: new Date("2026-06-02T10:00:00.000Z"),
   },
-  {
-    id: "sh-1002",
-    sku: "HOM-ASP-ROBO",
-    quantity: 1,
-    origin: "Los Angeles",
-    destination: { city: "Monterrey", country: "Mexico", postalCode: "64000", distanceKm: 220 },
-    priority: "Standard",
-    declaredValueUSD: 420,
-    carrier: "DHL",
-    status: "Delivered",
-    createdAt: new Date("2026-06-03T12:00:00.000Z"),
-  },
-  {
-    id: "sh-1003",
-    sku: "COS-SKIN-SET",
-    quantity: 2,
-    origin: "Zaragoza",
-    destination: { city: "Valencia", country: "Spain", postalCode: "46001", distanceKm: 352 },
-    priority: "Same-day",
-    declaredValueUSD: 96,
-    carrier: "SEUR",
-    status: "Assigned",
-    createdAt: new Date("2026-06-04T07:30:00.000Z"),
-  },
 ];
 
-export default function Home() {
+async function getInventoryData() {
+  try {
+    const items = await fetchInventoryItems();
+    const products: Product[] = items.map(apiItemToProduct) as Product[];
+    return { products, shipments: fallbackShipments };
+  } catch {
+    console.warn("API de inventario no disponible, usando datos mock como fallback");
+    return { products: fallbackProducts, shipments: fallbackShipments };
+  }
+}
+
+export default async function Home() {
+  const { products, shipments } = await getInventoryData();
   const lowStockProducts = filterLowStockProducts(products);
   const inventoryValue = calculateTotalInventoryValue(products);
   const avgDistance = calculateAverageShipmentDistance(shipments);

@@ -2,7 +2,7 @@
 # crud/movement.py - Operaciones CRUD para Movimientos
 # ============================================
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.movement import Movement
@@ -42,10 +42,10 @@ class MovementCRUD:
             .limit(limit)
         )
 
-        # También necesitamos el total
-        count_query = select(Movement.id).where(Movement.item_id == item_id)
+        # También necesitamos el total (usando func.count para eficiencia)
+        count_query = select(func.count()).where(Movement.item_id == item_id)
         total_result = await db.execute(count_query)
-        total = len(total_result.scalars().all())
+        total = total_result.scalar_one()
 
         result = await db.execute(query)
         movements = result.scalars().all()
