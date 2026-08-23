@@ -1,0 +1,53 @@
+# ============================================
+# docker-compose.yml - PostgreSQL local (Fase 7 del plan)
+# ============================================
+# Este archivo permite levantar una base de datos PostgreSQL LOCAL
+# para desarrollo y pruebas, como alternativa a Supabase.
+#
+# ¿Por qué existe?
+# - El plan (Fase 7) exige soporte para PostgreSQL además de SQLite
+# - Permite probar localmente antes de desplegar en Supabase
+# - Misma configuración que Supabase pero en tu máquina
+#
+# Comandos:
+#   docker compose up -d          → Iniciar PostgreSQL
+#   docker compose down           → Detener PostgreSQL
+#   DATABASE_URL="postgresql+asyncpg://app:devpassword@localhost:5432/inventory"
+#
+# Para usarlo:
+# 1. docker compose up -d
+# 2. En el .env, cambia DATABASE_URL a:
+#    DATABASE_URL="postgresql+asyncpg://app:devpassword@localhost:5432/inventory"
+# 3. alembic upgrade head
+# 4. uvicorn app.main:app --reload
+
+version: "3.9"
+
+services:
+  # ============================================
+  # Servicio: db (PostgreSQL)
+  # ============================================
+  # Crea una base de datos PostgreSQL 16 con:
+  # - Base de datos: inventory
+  # - Usuario: app
+  # - Contraseña: la variable DB_PASSWORD (o "devpassword" por defecto)
+  db:
+    image: postgres:16
+    container_name: trackflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: inventory
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpassword}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
