@@ -1,21 +1,28 @@
 from __future__ import annotations
 
 import csv
+import traceback
 from io import StringIO
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from analyzer import analyze_incidents, build_export_rows, parse_csv_text
+from routes.suppliers import router as suppliers_router
+from routes.users import router as users_router
+from routes.profiles import router as profiles_router
+from routes.auth import router as auth_router
+from routes.incidents import router as incidents_router
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "TrackFlow Incidents API"
-    cors_origins: str = "http://localhost:3000"
+    app_name: str = "TrackFlow API"
+    cors_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002"
 
 
 settings = Settings()
@@ -30,6 +37,50 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ─────────────────────────────────────────────────────────────
+# Manejador global de excepciones
+# NUNCA se devuelven stack traces al cliente (Checklist #16)
+# ─────────────────────────────────────────────────────────────
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Captura errores de validación Pydantic y devuelve un 400 identificando el campo problemático."""
+    errors = []
+    for err in exc.errors():
+        field = " → ".join(str(loc) for loc in err.get("loc", []))
+        msg = err.get("msg", "Error de validación")
+        errors.append(f"{field}: {msg}" if field else msg)
+    return JSONResponse(
+        status_code=400,
+        content={"detail": errors},
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Re-lanza HTTPException tal cual (son intencionales)."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Captura cualquier excepción no controlada y devuelve 500 sin stack trace."""
+    print(f"[ERROR] {request.method} {request.url.path}: {exc}")
+    traceback.print_exc()  # Solo en consola, no en respuesta
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Error interno del servidor"},
+    )
+
+# Registrar routers de autenticación
+app.include_router(users_router)
+app.include_router(profiles_router)
+app.include_router(auth_router)
+
 
 _last_analysis: dict | None = None
 

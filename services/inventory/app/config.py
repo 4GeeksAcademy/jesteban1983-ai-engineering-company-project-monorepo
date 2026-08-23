@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     app_name: str = "TrackFlow Inventory API"
     
     # cors_origins: Orígenes permitidos para CORS (separados por coma)
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002"
 
     # --- Base de datos ---
     # DATABASE_URL: La URL de conexión a la base de datos

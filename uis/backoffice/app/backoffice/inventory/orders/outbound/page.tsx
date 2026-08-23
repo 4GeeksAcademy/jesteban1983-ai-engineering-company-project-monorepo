@@ -8,10 +8,11 @@
 
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { OrderForm } from "@/components/inventory/OrderForm";
 
-export default function OutboundPage() {
+function OutboundForm() {
   const searchParams = useSearchParams();
   const productIdParam = searchParams.get("product_id");
   const preSelectedProductId = productIdParam
@@ -34,5 +35,20 @@ export default function OutboundPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function OutboundPage() {
+  return (
+    <Suspense fallback={
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Salida de mercancía</h1>
+          <p className="mt-1 text-sm text-gray-500">Cargando...</p>
+        </div>
+      </div>
+    }>
+      <OutboundForm />
+    </Suspense>
   );
 }

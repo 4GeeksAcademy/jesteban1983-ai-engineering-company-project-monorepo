@@ -1,0 +1,1 @@
+{"users": {"1": {"email": "test@trackflow.com", "hashed_password": "$2b$12$jXa5U5E5DEZ3j22rDgqU..XYPVj4v1F3qkoAO6acjxngvgsm/DV0O", "role": "user", "is_active": true, "created_at": "2026-08-23T18:05:47.506267+00:00"}}, "profiles": {"1": {"user_id": 1, "name": "Usuario Test", "phone": null, "address": null}}}
