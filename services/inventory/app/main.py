@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings  # Configuración (variables de entorno)
 from app.database import check_db_connection, init_db  # Función para crear tablas + healthcheck
 from app.routers.inventory import router as inventory_router
+from app.routers.backoffice import router as backoffice_router
 
 
 # ============================================
@@ -94,6 +95,9 @@ app.add_middleware(
 # ============================================
 # Conectamos las rutas de inventario a la app principal
 app.include_router(inventory_router)
+
+# Router del backoffice (/inventory/products, /inventory/orders, etc.)
+app.include_router(backoffice_router)
 
 
 # ============================================

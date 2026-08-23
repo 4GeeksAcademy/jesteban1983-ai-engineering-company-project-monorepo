@@ -66,6 +66,12 @@ class Movement(Base):
     # Por qué se hizo este movimiento (ej: "Reposición", "Venta", "Ajuste")
     reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # user_uuid: UUID del operador que realizó el movimiento (opcional)
+    # Se asigna desde el frontend tras login. String(36) = formato UUID estándar.
+    user_uuid: Mapped[Optional[str]] = mapped_column(
+        String(36), nullable=True
+    )
+
     # created_at: Fecha del movimiento (automática)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
