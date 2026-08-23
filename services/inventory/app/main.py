@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings  # Configuración (variables de entorno)
-from app.database import init_db  # Función para crear tablas
+from app.database import check_db_connection, init_db  # Función para crear tablas + healthcheck
 from app.routers.inventory import router as inventory_router
 
 
@@ -35,6 +35,13 @@ async def lifespan(app: FastAPI):
     """
     # ---- STARTUP: Al arrancar ----
     print("🚀 Iniciando TrackFlow Inventory API...")
+    
+    # 1️ Verificar conexión a base de datos primero
+    print("🔌 Verificando conexión a base de datos...")
+    await check_db_connection()
+    print("✅ Conexión a base de datos establecida")
+    
+    # 2️ Crear tablas si no existen
     await init_db()  # Crea las tablas en la base de datos
     print("✅ Tablas creadas/verificadas correctamente")
     

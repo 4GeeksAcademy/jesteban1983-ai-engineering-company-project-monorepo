@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     # En producción se configura como variable de entorno con PostgreSQL
     database_url: str = "sqlite+aiosqlite:///./dev.db"
 
+    # DB_SSL_MODE: Modo SSL para conexión a PostgreSQL
+    # Valores comunes: "require", "prefer", "disable", "verify-full"
+    # Supabase requiere SSL, por defecto usamos "require"
+    db_ssl_mode: str = "require"
+
     # Configuración para que pydantic-settings busque en .env
     # extra="ignore" significa que ignora variables extras que no estén definidas aquí
     model_config = SettingsConfigDict(
