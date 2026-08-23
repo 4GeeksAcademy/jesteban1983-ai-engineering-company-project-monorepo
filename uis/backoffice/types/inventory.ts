@@ -3,6 +3,12 @@
 // ============================================
 // Alineado con el REST contract de /inventory/* y vocabulario TrackFlow
 // Proyecto: Hito 5 — Interfaz de Gestión de Inventario (4Geeks Academy)
+//
+// Thresholds de nivel de stock (basados en min_stock del producto):
+//   - current_stock <= 0               → "out"  (Sin stock)
+//   - current_stock <= min_stock/2     → "low"  (Stock bajo)
+//   - current_stock <= min_stock * 1.5 → "medium" (Stock medio)
+//   - current_stock > min_stock * 1.5  → "high"  (En stock)
 // ============================================
 
 export interface Product {
@@ -48,8 +54,9 @@ export type StockLevel = "high" | "medium" | "low" | "out";
 
 export function getStockLevel(currentStock: number, minStock: number): StockLevel {
   if (currentStock <= 0) return "out";
-  if (currentStock <= 5) return "low";
-  if (currentStock <= 15) return "medium";
+  // Umbrales basados en min_stock del producto (documentados arriba)
+  if (currentStock <= minStock / 2) return "low";
+  if (currentStock <= minStock * 1.5) return "medium";
   return "high";
 }
 

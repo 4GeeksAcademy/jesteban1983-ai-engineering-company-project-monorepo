@@ -8,13 +8,14 @@
 // - preSelectedProductId: ID del producto pre-seleccionado (desde URL)
 //
 // Para outbound:
-//   - Muestra stock actual al seleccionar producto
-//   - Warning si cantidad > stock disponible
+//   - Muestra stock actual al seleccionar producto (reactivo)
+//   - Warning si cantidad > stock disponible (client-side)
+//   - HTTP 400 inline junto al campo de cantidad (según enunciado)
 // ============================================
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { listProducts, getProduct, createInboundOrder, createOutboundOrder } from "@/lib/inventory";
 import { isAuthenticated } from "@/lib/auth-actions";
@@ -36,7 +37,8 @@ export function OrderForm({ type, preSelectedProductId }: OrderFormProps) {
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [quantityError, setQuantityError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [currentStock, setCurrentStock] = useState<number | null>(null);
   const [stockWarning, setStockWarning] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export function OrderForm({ type, preSelectedProductId }: OrderFormProps) {
         const data = await listProducts();
         setProducts(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Error al cargar productos");
+        setGeneralError(err instanceof Error ? err.message : "Error al cargar productos");
       } finally {
         setFetching(false);
       }
@@ -98,16 +100,17 @@ export function OrderForm({ type, preSelectedProductId }: OrderFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setGeneralError(null);
+    setQuantityError(null);
     setSuccess(null);
 
     if (!productId) {
-      setError("Selecciona un producto.");
+      setGeneralError("Selecciona un producto.");
       return;
     }
     const qty = parseInt(quantity, 10);
     if (isNaN(qty) || qty <= 0) {
-      setError("La cantidad debe ser un número entero positivo.");
+      setQuantityError("La cantidad debe ser un número entero positivo.");
       return;
     }
 
@@ -142,7 +145,15 @@ export function OrderForm({ type, preSelectedProductId }: OrderFormProps) {
         setCurrentStock(updated.current_stock);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al procesar la orden");
+      const message = err instanceof Error ? err.message : "Error al procesar la orden";
+      // HTTP 400 (stock insuficiente) se muestra inline junto a cantidad
+      if (message.toLowerCase().includes("stock insuficiente") ||
+          message.toLowerCase().includes("insufficient stock") ||
+          message.toLowerCase().includes("stock")) {
+        setQuantityError(message);
+      } else {
+        setGeneralError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -158,8 +169,8 @@ export function OrderForm({ type, preSelectedProductId }: OrderFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Error banner */}
-      <ErrorBanner message={error} onDismiss={() => setError(null)} />
+      {/* General error banner */}
+      <ErrorBanner message={generalError} onDismiss={() => setGeneralError(null)} />
 
       {/* Success banner */}
       {success && (
@@ -216,17 +227,30 @@ export function OrderForm({ type, preSelectedProductId }: OrderFormProps) {
           min="1"
           step="1"
           value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
+          onChange={(e) => {
+            setQuantity(e.target.value);
+            // Limpiar error de cantidad al escribir
+            if (quantityError) setQuantityError(null);
+          }}
           className={`w-full rounded-lg border px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 ${
-            stockWarning
+            quantityError
+              ? "border-red-400 focus:border-red-500"
+              : stockWarning
               ? "border-amber-400 focus:border-amber-500"
               : "border-gray-300 focus:border-blue-500"
           }`}
           placeholder="Ej: 10"
           required
+          aria-invalid={quantityError ? "true" : "false"}
+          aria-describedby={quantityError ? "quantity-error" : stockWarning ? "quantity-warning" : undefined}
         />
-        {stockWarning && (
-          <p className="mt-1 text-sm text-amber-700">{stockWarning}</p>
+        {quantityError && (
+          <p id="quantity-error" className="mt-1 text-sm text-red-700" role="alert">
+            {quantityError}
+          </p>
+        )}
+        {stockWarning && !quantityError && (
+          <p id="quantity-warning" className="mt-1 text-sm text-amber-700">{stockWarning}</p>
         )}
       </div>
 
