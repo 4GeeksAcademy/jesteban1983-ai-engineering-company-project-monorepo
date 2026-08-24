@@ -12,6 +12,7 @@
 | **Rama** | `feature/performance-web-vitals` |
 | **Frontends auditados** | Website (`:3000`), Backoffice (`:3002`) |
 | **Herramientas** | Lighthouse 12.x, Puppeteer, Node.js |
+| **Skills de agente** | core-web-vitals, performance, web-perf |
 | **Perfiles** | Desktop + Mobile (4 ejecuciones) |
 
 ---
@@ -141,7 +142,46 @@ Mantener así por ahora, pero documentar para futura consolidación.
 
 ---
 
-## 6. Configuración del Entorno de Auditoría
+## 6. Skills de Agente Instaladas y su Uso
+
+Como parte del proceso de auditoría, se instalaron 3 skills de agente para guiar la identificación y corrección de problemas de rendimiento:
+
+| Skill | Origen | Versión | Propósito |
+|-------|--------|---------|-----------|
+| **core-web-vitals** | `addyosmani/web-quality-skills` | 1.0 | Optimización de LCP, INP, CLS, font-display, precarga |
+| **performance** | `addyosmani/web-quality-skills` | 1.0 | Optimización general de rendimiento, compresión, code splitting |
+| **web-perf** | `cloudflare/skills` | 1.0 | Auditoría con Chrome DevTools, análisis de trazas |
+
+### 6.1 Correcciones Guiadas por las Skills
+
+| Corrección aplicada | Skill que la recomendó | Prioridad según skill |
+|--------------------|----------------------|---------------------|
+| `font-display: "swap"` en Google Fonts | `core-web-vitals` (LCP) | Requerida |
+| `compress: true` en next.config.ts | `performance` (Performance budget) | Requerida |
+| `poweredByHeader: false` | `performance` (Best Practices) | Sugerida |
+| Security Headers (X-Content-Type-Options, etc.) | `performance` (Security) | Requerida |
+| Cache headers para assets estáticos | `performance` (Resource loading) | Requerida |
+| Lazy loading con `next/dynamic` (3 componentes) | `performance` (Code splitting) | Requerida |
+| Preconnect a API de inventario | `core-web-vitals` / `performance` (LCP) | Requerida |
+| Refactorización de stock logic a `@trackflow/logic` | `core-web-vitals` (Código duplicado) | Requerida |
+
+### 6.2 Proceso de Corrección con Skills
+
+1. Se ejecutó Lighthouse en ambos frontends (website + backoffice, desktop + mobile) — 4 mediciones baseline
+2. Se analizaron los informes de Lighthouse para identificar oportunidades de mejora
+3. Se consultaron las skills `core-web-vitals` y `performance` para obtener recomendaciones específicas para Next.js
+4. Cada corrección se aplicó siguiendo las guías de las skills:
+   - **Performance skill**: guió la configuración de `next.config.ts` (compression, headers, caching)
+   - **Core-web-vitals skill**: guió la optimización de fuentes (`font-display: swap`), preconnect, y viewport
+   - **Performance skill**: guió el code splitting con `next/dynamic` para reducir JavaScript inicial
+5. Se volvió a ejecutar Lighthouse tras todas las correcciones — 4 mediciones finales
+6. Se documentaron los resultados en AUDIT.md y REPORT.md
+
+> **Nota:** Las skills `core-web-vitals` y `performance` proporcionaron correcciones clasificadas como "requeridas" (no meras sugerencias), todas las cuales fueron implementadas. La skill `web-perf` se instaló como recurso adicional para futuras auditorías con Chrome DevTools.
+
+---
+
+## 7. Configuración del Entorno de Auditoría
 
 ```bash
 # Herramientas instaladas

@@ -21,6 +21,18 @@ Se realizó una auditoría de rendimiento completa sobre los dos frontends del p
 
 ## 2. Correcciones Aplicadas
 
+### 2.0 Uso de Skills de Agente
+
+Se instalaron 3 skills de agente para guiar el proceso de corrección:
+
+| Skill | Instalada | Correcciones que guió |
+|-------|-----------|----------------------|
+| **core-web-vitals** (`addyosmani/web-quality-skills`) | ✅ | font-display swap, preconnect, viewport, LCP optimization |
+| **performance** (`addyosmani/web-quality-skills`) | ✅ | compress, headers, caching, code splitting, performance budget |
+| **web-perf** (`cloudflare/skills`) | ✅ | Instalada como recurso para futuras auditorías con Chrome DevTools |
+
+Cada corrección documentada abajo fue aplicada siguiendo las recomendaciones de las skills, priorizando aquellas clasificadas como **correcciones requeridas** sobre meras sugerencias. El proceso completo está documentado en `AUDIT.md` (sección 6).
+
 ### 2.1 Configuración de Next.js (next.config.ts)
 
 | Corrección | Website | Backoffice | Impacto |
