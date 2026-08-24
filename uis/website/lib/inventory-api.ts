@@ -4,7 +4,7 @@
  */
 
 // Usamos variable de entorno o fallback a localhost
-const API_BASE_URL = process.env.NEXT_PUBLIC_INVENTORY_API_URL ?? "http://127.0.0.1:8001";
+const API_BASE_URL = process.env.NEXT_PUBLIC_INVENTORY_API_URL ?? "http://localhost:8003";
 
 export interface ApiItem {
   id: number;
