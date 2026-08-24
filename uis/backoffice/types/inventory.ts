@@ -4,12 +4,13 @@
 // Alineado con el REST contract de /inventory/* y vocabulario TrackFlow
 // Proyecto: Hito 5 — Interfaz de Gestión de Inventario (4Geeks Academy)
 //
-// Thresholds de nivel de stock (basados en min_stock del producto):
-//   - current_stock <= 0               → "out"  (Sin stock)
-//   - current_stock <= min_stock/2     → "low"  (Stock bajo)
-//   - current_stock <= min_stock * 1.5 → "medium" (Stock medio)
-//   - current_stock > min_stock * 1.5  → "high"  (En stock)
+// La lógica de nivel de stock (getStockLevel, getStockLabel, etc.)
+// se ha movido a @trackflow/logic (packages/logic/src/trackflow/stock.ts)
+// para evitar duplicación entre frontends.
 // ============================================
+
+export { getStockLevel, getStockLabel, getStockColor, getStockIcon } from "@trackflow/logic";
+export type { StockLevel } from "@trackflow/logic";
 
 export interface Product {
   id: number;
@@ -48,47 +49,4 @@ export interface OutboundOrderInput {
 export interface ApiError {
   detail?: string;
   message?: string;
-}
-
-export type StockLevel = "high" | "medium" | "low" | "out";
-
-export function getStockLevel(currentStock: number, minStock: number): StockLevel {
-  if (currentStock <= 0) return "out";
-  // Umbrales basados en min_stock del producto (documentados arriba)
-  if (currentStock <= minStock / 2) return "low";
-  if (currentStock <= minStock * 1.5) return "medium";
-  return "high";
-}
-
-export function getStockLabel(currentStock: number, minStock: number): string {
-  const level = getStockLevel(currentStock, minStock);
-  const labels: Record<StockLevel, string> = {
-    high: "En stock",
-    medium: "Stock medio",
-    low: "Stock bajo",
-    out: "Sin stock",
-  };
-  return labels[level];
-}
-
-export function getStockColor(currentStock: number, minStock: number): string {
-  const level = getStockLevel(currentStock, minStock);
-  const colors: Record<StockLevel, string> = {
-    high: "bg-green-100 text-green-800 border-green-300",
-    medium: "bg-amber-100 text-amber-800 border-amber-300",
-    low: "bg-red-100 text-red-800 border-red-300",
-    out: "bg-gray-100 text-gray-800 border-gray-300",
-  };
-  return colors[level];
-}
-
-export function getStockIcon(currentStock: number, minStock: number): string {
-  const level = getStockLevel(currentStock, minStock);
-  const icons: Record<StockLevel, string> = {
-    high: "🟢",
-    medium: "🟡",
-    low: "🔴",
-    out: "⚪",
-  };
-  return icons[level];
 }

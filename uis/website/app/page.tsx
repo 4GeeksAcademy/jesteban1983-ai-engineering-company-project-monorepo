@@ -4,16 +4,28 @@ import {
   filterLowStockProducts,
   findTopCarriers,
 } from "@trackflow/logic";
-import { CtaSection } from "../components/CtaSection";
+import dynamic from "next/dynamic";
 import { HeroSection } from "../components/HeroSection";
 import { KpiBand } from "../components/KpiBand";
-import { OperationsFlow } from "../components/OperationsFlow";
 import { ProductCatalog } from "../components/ProductCatalog";
 import { ServiceGrid } from "../components/ServiceGrid";
-import { TestimonialsSection } from "../components/TestimonialsSection";
 import { fetchInventoryItems, apiItemToProduct } from "../lib/inventory-api";
 
 import type { Product, Shipment } from "@trackflow/logic";
+
+// Lazy loading para componentes que están debajo del fold
+const OperationsFlow = dynamic(() =>
+  import("../components/OperationsFlow").then((mod) => mod.OperationsFlow),
+  { loading: () => <div className="h-64 animate-pulse rounded-2xl bg-slate-100" /> }
+);
+const TestimonialsSection = dynamic(() =>
+  import("../components/TestimonialsSection").then((mod) => mod.TestimonialsSection),
+  { loading: () => <div className="h-48 animate-pulse rounded-2xl bg-slate-100" /> }
+);
+const CtaSection = dynamic(() =>
+  import("../components/CtaSection").then((mod) => mod.CtaSection),
+  { loading: () => <div className="h-32 animate-pulse rounded-2xl bg-slate-100" /> }
+);
 
 const fallbackProducts: Product[] = [
   {

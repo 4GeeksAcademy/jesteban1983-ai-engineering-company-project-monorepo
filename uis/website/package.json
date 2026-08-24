@@ -13,7 +13,8 @@
     "postcss": "^8.5.19",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "styled-jsx": "^5.1.7"
+    "styled-jsx": "^5.1.7",
+    "@trackflow/logic": "*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

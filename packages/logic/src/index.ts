@@ -5,5 +5,6 @@ export * from "./trackflow/collections";
 export * from "./trackflow/contracts";
 export * from "./trackflow/search";
 export * from "./trackflow/transformations";
+export * from "./trackflow/stock";
 export * from "./trackflow/validations";
 export * from "./trackflow/smokeReport";
