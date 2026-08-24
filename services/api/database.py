@@ -9,7 +9,11 @@ Ahora con 3 tablas:
 
 from tinydb import TinyDB, Query
 
-db = TinyDB("db.json")
+import os
+
+db_dir = os.path.join(os.path.dirname(__file__), "tinydb")
+os.makedirs(db_dir, exist_ok=True)
+db = TinyDB(os.path.join(db_dir, "db.json"))
 
 suppliers_table = db.table("suppliers")
 users_table = db.table("users")
