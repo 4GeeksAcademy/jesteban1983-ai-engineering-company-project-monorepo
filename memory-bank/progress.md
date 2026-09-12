@@ -1,5 +1,7 @@
 # Progress
 
+- [x] **Evaluación temporal del modelo de ventas — TrackFlow**: rama `feature/evaluate-sales-model` con `TimeSeriesSplit(n_splits=5)` sobre 2016–2023 exclusivamente, métricas MAE/RMSE train-validation como media ± desviación estándar, curva de aprendizaje cronológica, diagnóstico de sobreajuste y acción correctiva específica; prueba temporal y artefactos en `data/eval/` generados.
+
 - [x] **Sales Forecasting — TrackFlow**: dataset oficial `data/raw/trackflow_sales.csv` validado; pipeline cronológico 8/2 con Random Forest, escalado train-only, métricas MSE/PSI/Gini/K², gráfico con banda de variabilidad y prueba anti-fuga implementados.
 
 - [x] Setup: Monorepo, Workspaces y configuracion TypeScript.
