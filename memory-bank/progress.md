@@ -90,3 +90,5 @@
       - 13 reemplazos: `properties →` → `tags->>`, eliminar `company_name`, corregir dedup (PK es `id`, no UNIQUE eventId), checkpoint con `last_event_id`, etc.
       - 2 reemplazos adicionales: eliminar enriquecimiento falso (`profiles` como clientes), B3 del diagrama simplificado
     - [x] Documento validado: 419 líneas, 12 fences balanceados, 0 referencias a columnas inexistentes
+
+- [x] **Hito 7 — RAG y Knowledge Base de TrackFlow**: rama `feature/rag-knowledge-base`; corpus oficial en `docs/company-knowledge-base/` con cuatro documentos y 22 chunks semánticos; pipeline directo con Qdrant (`trackflow_knowledge`), embeddings y generación configurables mediante modelos distintos; recuperación con `min_score`; endpoint FastAPI `POST /knowledge/query`; interfaz mínima en Backoffice `/knowledge`; pruebas unitarias con mocks; evaluación Recall@3 con 8 preguntas; diseño en `docs/rag/rag-design.md`.

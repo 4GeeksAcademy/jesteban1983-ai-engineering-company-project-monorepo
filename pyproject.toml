@@ -8,6 +8,8 @@ dependencies = [
   "pandas==2.2.3",
   "scikit-learn==1.6.1",
   "scipy==1.15.2",
+  "httpx==0.28.1",
+  "qdrant-client==1.14.2",
 ]
 
 [tool.pytest.ini_options]

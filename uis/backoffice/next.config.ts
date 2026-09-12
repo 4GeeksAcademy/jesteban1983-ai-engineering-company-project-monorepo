@@ -32,6 +32,10 @@ const nextConfig: NextConfig = {
         source: "/pipeline/:path*",
         destination: "http://localhost:8000/pipeline/:path*",
       },
+      {
+        source: "/knowledge/:path*",
+        destination: "http://localhost:8000/knowledge/:path*",
+      },
     ];
   },
 };
