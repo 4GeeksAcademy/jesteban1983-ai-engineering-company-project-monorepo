@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from database import suppliers_table, Supplier as SupplierQuery
+from .database import suppliers_table, Supplier as SupplierQuery
 
 # ─────────────────────────────────────────────────────────────
 # DATOS INICIALES — exactamente los definidos en CONTEXT-trackflow.md

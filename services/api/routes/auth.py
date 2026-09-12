@@ -26,8 +26,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 
-from dependencies.auth_deps import get_current_user
-from services.auth_service import (
+from ..dependencies.auth_deps import get_current_user
+from ..services.auth_service import (
     create_access_token,
     create_reset_token,
     hash_password,
@@ -36,10 +36,10 @@ from services.auth_service import (
     verify_password,
     verify_reset_token,
 )
-from services.email_service import send_reset_email
-from services.user_service import get_profile_by_user_id, get_user_by_email
+from ..services.email_service import send_reset_email
+from ..services.user_service import get_profile_by_user_id, get_user_by_email
 
-from database import users_table, User as UserQuery
+from ..database import users_table, User as UserQuery
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

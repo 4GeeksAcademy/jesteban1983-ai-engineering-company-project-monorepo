@@ -1,5 +1,9 @@
 # Progress
 
+- [x] **Evaluación temporal del modelo de ventas — TrackFlow**: rama `feature/evaluate-sales-model` con `TimeSeriesSplit(n_splits=5)` sobre 2016–2023 exclusivamente, métricas MAE/RMSE train-validation como media ± desviación estándar, curva de aprendizaje cronológica, diagnóstico de sobreajuste y acción correctiva específica; prueba temporal y artefactos en `data/eval/` generados.
+
+- [x] **Sales Forecasting — TrackFlow**: dataset oficial `data/raw/trackflow_sales.csv` validado; pipeline cronológico 8/2 con Random Forest, escalado train-only, métricas MSE/PSI/Gini/K², gráfico con banda de variabilidad y prueba anti-fuga implementados.
+
 - [x] Setup: Monorepo, Workspaces y configuracion TypeScript.
 - [x] Logic: modulo `@trackflow/logic` centralizado en `packages/logic`.
 - [x] Protocol: `AGENTS.md` con flujo obligatorio pre-commit y zonas protegidas.
@@ -86,3 +90,5 @@
       - 13 reemplazos: `properties →` → `tags->>`, eliminar `company_name`, corregir dedup (PK es `id`, no UNIQUE eventId), checkpoint con `last_event_id`, etc.
       - 2 reemplazos adicionales: eliminar enriquecimiento falso (`profiles` como clientes), B3 del diagrama simplificado
     - [x] Documento validado: 419 líneas, 12 fences balanceados, 0 referencias a columnas inexistentes
+
+- [x] **Hito 7 — RAG y Knowledge Base de TrackFlow**: rama `feature/rag-knowledge-base`; corpus oficial en `docs/company-knowledge-base/` con cuatro documentos y 22 chunks semánticos; pipeline directo con Qdrant (`trackflow_knowledge`), embeddings y generación configurables mediante modelos distintos; recuperación con `min_score`; endpoint FastAPI `POST /knowledge/query`; interfaz mínima en Backoffice `/knowledge`; pruebas unitarias con mocks; evaluación Recall@3 con 8 preguntas; diseño en `docs/rag/rag-design.md`.

@@ -6,7 +6,7 @@ se puede importar directamente de models:
     from models import Supplier, SupplierCreate, ...
 """
 
-from models.supplier_models import (
+from .supplier_models import (
     Category,
     Country,
     Currency,
@@ -16,7 +16,7 @@ from models.supplier_models import (
     SupplierCreate,
     SupplierStatus,
 )
-from models.incident import (
+from .incident import (
     IncidentCreate,
     IncidentUpdateStatus,
     IncidentResponse,

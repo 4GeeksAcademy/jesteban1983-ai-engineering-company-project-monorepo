@@ -15,10 +15,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from dependencies.auth_deps import get_current_user
-from models.profile_models import ProfileCreate
-from models.user_models import UserCreate, UserResponse, UserUpdate
-from services.user_service import (
+from ..dependencies.auth_deps import get_current_user
+from ..models.profile_models import ProfileCreate
+from ..models.user_models import UserCreate, UserResponse, UserUpdate
+from ..services.user_service import (
     create_user,
     delete_user,
     get_all_users,

@@ -16,9 +16,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from dependencies.auth_deps import get_current_user
-from models.profile_models import ProfileResponse, ProfileUpdate
-from services.user_service import get_profile_by_user_id, update_profile
+from ..dependencies.auth_deps import get_current_user
+from ..models.profile_models import ProfileResponse, ProfileUpdate
+from ..services.user_service import get_profile_by_user_id, update_profile
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
