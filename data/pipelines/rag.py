@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
+import unicodedata
 from typing import Any
 
 import httpx
@@ -11,6 +13,35 @@ from data.process.rag import COLLECTION_NAME, embed
 
 DEFAULT_GENERATION_MODEL = "gpt-4o-mini"
 DEFAULT_MIN_SCORE = 0.35
+
+# Hybrid retrieval: dense similarity gates candidates (min_score requirement),
+# keyword overlap only re-ranks what already passed the threshold.
+DENSE_WEIGHT = 0.7
+KEYWORD_WEIGHT = 0.3
+
+_QUESTION_STOPWORDS = {
+    "a", "al", "como", "con", "cual", "cuales", "cuando", "cuanto", "de", "del",
+    "donde", "el", "en", "es", "esta", "estan", "ha", "hay", "la", "las", "lo",
+    "los", "para", "por", "que", "se", "son", "su", "sus", "un", "una", "y", "o",
+}
+
+
+def _normalize_tokens(text: str) -> list[str]:
+    lowered = unicodedata.normalize("NFD", text.lower())
+    lowered = "".join(char for char in lowered if unicodedata.category(char) != "Mn")
+    tokens = re.findall(r"[a-z0-9]{3,}", lowered)
+    return [token for token in tokens if token not in _QUESTION_STOPWORDS]
+
+
+def _keyword_score(tokens: list[str], text: str) -> float:
+    """Fraction of query tokens matched in a chunk, accent-insensitive."""
+    if not tokens:
+        return 0.0
+    lowered = unicodedata.normalize("NFD", text.lower())
+    lowered = "".join(char for char in lowered if unicodedata.category(char) != "Mn")
+    words = set(re.findall(r"[a-z0-9]{3,}", lowered))
+    matched = sum(1 for token in tokens if any(word.startswith(token) or token.startswith(word) for word in words))
+    return matched / len(tokens)
 
 
 def _client() -> Any:
@@ -26,10 +57,12 @@ def retrieve(query: str, *, k: int = 5, min_score: float = DEFAULT_MIN_SCORE) ->
     """Return only payloads whose semantic score meets the relevance threshold."""
     if k < 1:
         return []
+    # Over-fetch candidates so the hybrid re-rank can promote chunks the
+    # dense ranking alone would leave out of the top-k (single search call).
     results = _client().search(
         collection_name=COLLECTION_NAME,
         query_vector=embed(query),
-        limit=k,
+        limit=max(k * 4, 20),
         with_payload=True,
     )
     selected: list[dict[str, Any]] = []
@@ -40,7 +73,16 @@ def retrieve(query: str, *, k: int = 5, min_score: float = DEFAULT_MIN_SCORE) ->
         payload = dict(getattr(result, "payload", {}) or {})
         payload["score"] = score
         selected.append(payload)
-    return selected
+
+    # Hybrid re-rank: keyword overlap boosts chunks whose text literally
+    # contains the query terms; dense score still dominates the ranking.
+    tokens = _normalize_tokens(query)
+    for payload in selected:
+        keyword = _keyword_score(tokens, payload.get("text", ""))
+        payload["keyword_score"] = keyword
+        payload["score"] = round(DENSE_WEIGHT * payload["score"] + KEYWORD_WEIGHT * keyword, 4)
+    selected.sort(key=lambda item: item["score"], reverse=True)
+    return selected[:k]
 
 
 def _generation_settings() -> tuple[str, str, str]:

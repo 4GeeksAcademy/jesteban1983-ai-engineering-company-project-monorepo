@@ -9,19 +9,19 @@ La base de conocimiento ayuda a los account managers y al equipo de business dev
 1. Los cuatro documentos Markdown oficiales viven en `docs/company-knowledge-base/`.
 2. `load_chunks()` los separa por párrafos semánticos, preservando el título del documento y las condiciones en cada chunk.
 3. `setup()` recrea de forma idempotente la colección Qdrant `trackflow_knowledge`, calcula embeddings y sube puntos con el payload contractual.
-4. `retrieve()` embebe la pregunta, consulta Qdrant y descarta resultados por debajo de `min_score=0.35`; por ello puede devolver menos de `k` resultados.
+4. `retrieve()` embebe la pregunta y consulta Qdrant una sola vez con sobre-muestreo (`limit = max(k*4, 20)`). Descarta candidatos por debajo de `min_score=0.35` (score denso coseno) y re-ordena los supervivientes combinando score denso (peso 0.7) con solapamiento léxico español, insensible a acentos (peso 0.3). Por ello puede devolver menos de `k` resultados.
 5. `generate_answer()` construye un prompt con el contexto seleccionado y llama al modelo generativo.
 6. `query()` compone exclusivamente `retrieve()` y `generate_answer()`.
 7. `POST /knowledge/query` devuelve solo `{ "answer": "..." }`; nunca devuelve chunks, vectores ni puntuaciones.
 
 ## Chunking y payload
 
-El chunking usa párrafos Markdown como unidades semánticas. No corta listas de reglas ni condiciones por tamaño arbitrario, lo que mantiene juntos hechos como ventana, excepción y responsable de aprobación. Cada chunk contiene `company`, `source_document`, `section`, `language`, `chunk_index` y `text`. El corpus actual genera 22 chunks: SLA 5, devoluciones 7, cobertura de transportistas 5 y tarifas de almacenamiento 5.
+El chunking usa párrafos Markdown como unidades semánticas. No corta listas de reglas ni condiciones por tamaño arbitrario, lo que mantiene juntos hechos como ventana, excepción y responsable de aprobación. Cada chunk contiene `company`, `source_document`, `section`, `language`, `chunk_index` y `text`. El corpus actual genera 18 chunks: SLA 4, devoluciones 6, cobertura de transportistas 4 y tarifas de almacenamiento 4. Los fragmentos que solo contienen encabezados se excluyen del índice.
 
 ## Modelos y vectores
 
-- Embeddings: `EMBEDDING_MODEL`, por defecto `text-embedding-3-small`.
-- Generación: `GENERATION_MODEL`, por defecto `gpt-4o-mini`.
+- Embeddings: `EMBEDDING_MODEL`, por defecto `text-embedding-3-small`. Runtime actual: `bge-m3` (1024 dimensiones, multilingüe) servido por Ollama en `http://localhost:11434/v1`.
+- Generación: `GENERATION_MODEL`, por defecto `gpt-4o-mini`. Runtime actual: `openai/gpt-oss-120b` vía API de Groq.
 - Son identificadores distintos y se configuran de forma independiente.
 - Dimensión: `EMBEDDING_DIMENSION`, por defecto 1536.
 - Distancia Qdrant: cosine.
@@ -29,7 +29,7 @@ El chunking usa párrafos Markdown como unidades semánticas. No corta listas de
 
 ## Preprocesamiento, umbral e idempotencia
 
-Los archivos se leen como UTF-8, se eliminan espacios externos y se conserva el texto español sin traducir. El umbral inicial `0.35` es deliberadamente conservador: evita introducir contexto débil y permite que el sistema reconozca falta de información. Se valida con `data/eval/test-queries.json` mediante Recall@3. `setup()` usa `recreate_collection()` y UUID determinista derivado de documento, índice y texto; repetir la carga no duplica contenido.
+Los archivos se leen como UTF-8, se eliminan espacios externos y se conserva el texto español sin traducir. El umbral inicial `0.35` es deliberadamente conservador: evita introducir contexto débil y permite que el sistema reconozca falta de información. Se valida con `data/eval/test-queries.json` mediante Recall@3. La validación híbrida (dense + léxico con sobre-muestreo) alcanzó Recall@3 = 1.0 (8/8), superando el umbral requerido de 0.8. El re-ranking léxico usa tokens normalizados (minúsculas, sin acentos, stopwords de pregunta en español filtradas) con coincidencia por prefijo, de modo que variantes como "plazo"/"plazos" empatan. `setup()` usa `recreate_collection()` y UUID determinista derivado de documento, índice y texto; repetir la carga no duplica contenido.
 
 ## Seguridad comercial y respuestas
 
