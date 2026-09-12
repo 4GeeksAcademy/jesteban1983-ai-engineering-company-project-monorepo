@@ -56,26 +56,59 @@ def _source_name(path: Path) -> str:
 
 
 def chunk_document(path: Path) -> list[Chunk]:
-    """Split a source by semantic paragraphs while preserving section meaning."""
+    """Split a source into section-aware semantic chunks.
+
+    Consecutive paragraphs are grouped under their nearest heading, every
+    chunk is prefixed with the document title and section so retrieval can
+    disambiguate similar topics across documents, and header-only fragments
+    are never indexed.
+    """
     text = path.read_text(encoding="utf-8").strip()
     lines = text.splitlines()
     title = next((line.lstrip("# ").strip() for line in lines if line.startswith("#")), path.stem)
     paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
-    chunks: list[Chunk] = []
-    for index, paragraph in enumerate(paragraphs):
+
+    sections: list[tuple[str, list[str]]] = []
+    current_section = title
+    buffer: list[str] = []
+    for paragraph in paragraphs:
         if paragraph.startswith("#"):
-            section = paragraph.lstrip("# ").strip()
+            if buffer:
+                sections.append((current_section, buffer))
+                buffer = []
+            current_section = paragraph.lstrip("# ").strip()
         else:
-            section = title
-        chunks.append(
-            Chunk(
-                source_document=_source_name(path),
-                section=section,
-                language="es",
-                chunk_index=index,
-                text=paragraph,
+            buffer.append(paragraph)
+    if buffer:
+        sections.append((current_section, buffer))
+
+    chunks: list[Chunk] = []
+    index = 0
+    for section, parts in sections:
+        prefix = title if section == title else f"{title} — {section}"
+        groups: list[str] = []
+        bullets: list[str] = []
+        for part in parts:
+            if part.startswith("- "):
+                bullets.append(part.removeprefix("- "))
+                continue
+            if bullets:
+                groups.append("\n".join(bullets))
+                bullets = []
+            groups.append(part)
+        if bullets:
+            groups.append("\n".join(bullets))
+        for group in groups:
+            chunks.append(
+                Chunk(
+                    source_document=_source_name(path),
+                    section=section,
+                    language="es",
+                    chunk_index=index,
+                    text=f"{prefix}: {group}",
+                )
             )
-        )
+            index += 1
     return chunks
 
 
