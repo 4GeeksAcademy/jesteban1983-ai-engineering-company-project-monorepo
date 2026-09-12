@@ -1,5 +1,7 @@
 # Progress
 
+- [x] **Sales Forecasting — TrackFlow**: dataset oficial `data/raw/trackflow_sales.csv` validado; pipeline cronológico 8/2 con Random Forest, escalado train-only, métricas MSE/PSI/Gini/K², gráfico con banda de variabilidad y prueba anti-fuga implementados.
+
 - [x] Setup: Monorepo, Workspaces y configuracion TypeScript.
 - [x] Logic: modulo `@trackflow/logic` centralizado en `packages/logic`.
 - [x] Protocol: `AGENTS.md` con flujo obligatorio pre-commit y zonas protegidas.
