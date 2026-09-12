@@ -22,9 +22,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 # TinyDB
 from tinydb import TinyDB, Query as TinyQuery
 
-from dependencies.auth_deps import get_current_user
-from models import IncidentCreate, IncidentUpdateStatus, IncidentResponse, SummaryResponse
-from models.incident import (
+from ..dependencies.auth_deps import get_current_user
+from ..models import IncidentCreate, IncidentUpdateStatus, IncidentResponse, SummaryResponse
+from ..models.incident import (
     STATUS_TRANSITIONS,
     STATUS_FINAL,
     VALID_CATEGORIES,
@@ -32,7 +32,7 @@ from models.incident import (
     VALID_ORIGINS,
     VALID_STATUSES,
 )
-from core.cache import cache_get, cache_set, cache_invalidate_prefix
+from ..core.cache import cache_get, cache_set, cache_invalidate_prefix
 # ───── Misma instancia de TinyDB que el resto de la app ─────
 INCIDENTS_DB_PATH = "incidentes_db.json"
 

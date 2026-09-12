@@ -20,7 +20,7 @@ logger = logging.getLogger("celery.tasks")
 # Dead Letter Queue (DLQ) — TinyDB persistente
 # ─────────────────────────────────────────────────────────────
 
-DLQ_DB_PATH = Path(__file__).resolve().parent.parent / "api" / "dlq.json"
+DLQ_DB_PATH = Path(__file__).resolve().parent / "api" / "dlq.json"
 dlq_db = TinyDB(str(DLQ_DB_PATH))
 dlq_table = dlq_db.table("dead_letter_queue")
 DLQEntry = Query()

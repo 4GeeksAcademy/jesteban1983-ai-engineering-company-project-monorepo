@@ -14,8 +14,8 @@ from __future__ import annotations
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
-from services.auth_service import decode_access_token
-from services.user_service import get_user_by_id
+from ..services.auth_service import decode_access_token
+from ..services.user_service import get_user_by_id
 
 # OAuth2PasswordBearer extrae automáticamente el token del header:
 # Authorization: Bearer <token>

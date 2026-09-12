@@ -10,11 +10,17 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[2]
 CORPUS_DIR = ROOT / "docs" / "company-knowledge-base"
 COLLECTION_NAME = "trackflow_knowledge"
 DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
+
+# Load repo configuration regardless of the process working directory.
+# Explicit environment variables take precedence by default.
+load_dotenv(ROOT / ".env")
+load_dotenv(ROOT / "services" / "api" / ".env")
 
 
 @dataclass(frozen=True)

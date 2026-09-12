@@ -26,10 +26,10 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from database import suppliers_table, Supplier as SupplierQuery
-from dependencies.auth_deps import get_current_user
-from models import Supplier, SupplierCreate, RateUpdate, StatusUpdate
-from core.cache import cache_get, cache_set, cache_invalidate_prefix
+from ..database import suppliers_table, Supplier as SupplierQuery
+from ..dependencies.auth_deps import get_current_user
+from ..models import Supplier, SupplierCreate, RateUpdate, StatusUpdate
+from ..core.cache import cache_get, cache_set, cache_invalidate_prefix
 
 router = APIRouter(
     prefix="/suppliers",

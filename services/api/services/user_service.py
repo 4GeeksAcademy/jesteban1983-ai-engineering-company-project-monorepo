@@ -20,10 +20,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from database import profiles_table, users_table, User as UserQuery
-from models.profile_models import ProfileCreate, ProfileUpdate
-from models.user_models import UserCreate, UserUpdate
-from services.auth_service import hash_password
+from ..database import profiles_table, users_table, User as UserQuery
+from ..models.profile_models import ProfileCreate, ProfileUpdate
+from ..models.user_models import UserCreate, UserUpdate
+from .auth_service import hash_password
 
 
 def create_user(user_data: UserCreate, profile_data: Optional[ProfileCreate] = None) -> dict:

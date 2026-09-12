@@ -23,7 +23,7 @@ def ask_knowledge_base(request: KnowledgeQuery) -> KnowledgeAnswer:
     try:
         return KnowledgeAnswer(answer=query(request.question.strip()))
     except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail="Knowledge service is not configured") from exc
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 __all__ = ["router"]
