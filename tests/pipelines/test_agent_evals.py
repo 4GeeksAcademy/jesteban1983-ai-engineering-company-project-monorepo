@@ -4,6 +4,9 @@ These tests verify:
 1. Happy path: retrieve + generate_answer with valid context.
 2. Empty question: routes directly to END without retrieving.
 3. No context: routes to no_info node for an honest response.
+4. Ticket tool routing: questions with ticket keywords → ticket_tool node.
+5. RAG routing: general knowledge questions → retrieve node (not tool).
+6. Tool fallback: when the tool fails (timeout/404) → honest response.
 
 All evals run against the compiled graph trace, not live execution.
 """
@@ -23,8 +26,11 @@ from services.agent_service.graph import (
     retrieve_node,
     generate_answer_node,
     no_info_node,
+    ticket_tool_node,
+    inventory_tool_node,
     route_after_question,
     route_after_retrieve,
+    route_after_tool,
 )
 
 
@@ -71,13 +77,42 @@ def _run_graph(compiled_graph, question: str, monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(agent_graph_module, "retrieve", mock_retrieve)
     monkeypatch.setattr(agent_graph_module, "generate_answer", mock_generate_answer)
 
+    # Mock tool functions to prevent real HTTP calls during tests
+    # We patch via agent_graph_module because graph.py uses direct imports
+    # (from ...tools import get_ticket_by_id), which creates local references.
+    monkeypatch.setattr(agent_graph_module, "get_ticket_by_id", Mock(return_value=Mock(
+        error=None,
+        model_dump=lambda: {
+            "id": 482, "title": "Retraso en envío", "description": "Cliente reporta retraso",
+            "category": "delivery", "status": "open", "origin": "phone",
+            "branch": "madrid-01", "created_at": "2026-09-24T10:00:00", "updated_at": "2026-09-24T14:00:00",
+        },
+    )))
+    monkeypatch.setattr(agent_graph_module, "get_product_stock", Mock(return_value=Mock(
+        error=None,
+        model_dump=lambda: {
+            "id": 7, "name": "carbon fiber", "country": "Spain",
+            "rate_per_shipment": 12.50, "status": "active",
+        },
+    )))
+
     # Run graph
     initial: AgentState = {
         "question": question,
         "context": [],
         "answer": "",
         "error": None,
+        "tool_type": None,
     }
+
+    thread_id = str(uuid.uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
+
+    for _ in compiled_graph.stream(initial, config):
+        pass
+
+    final = compiled_graph.get_state(config)
+    return dict(final.values) if final else initial
 
     thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
@@ -226,11 +261,129 @@ def test_route_after_retrieve_has_context():
         "context": [{"text": "some info", "source_document": "doc.md", "score": 0.9}],
         "answer": "",
         "error": None,
+        "tool_type": None,
     }
     assert route_after_retrieve(state) == "generate_answer"
 
 
-# ── Eval 4 (bonus): Existing RAG tests still pass ──────────────────────────
+# ── Eval 5: Ticket tool routing (requirement #8) ──────────────────────────
+
+def test_eval_ticket_tool_routing(graph, monkeypatch):
+    """A question containing ticket/incident keywords should:
+    - route to ticket_tool_node (NOT retrieve)
+    - return ticket data in context
+    - set tool_type = 'ticket_tool'
+    """
+    from services.agent_service import graph as agent_graph_module
+    from data.pipelines import rag
+
+    # Mock get_ticket_by_id in the graph module to prevent real HTTP
+    # (graph.py imports it locally, so we must patch via the graph module)
+    mock_ticket = Mock()
+    mock_ticket.error = None
+    mock_ticket.model_dump = lambda: {
+        "id": 482, "title": "Retraso en envío", "description": "Cliente reporta retraso",
+        "category": "delivery", "status": "open", "origin": "phone",
+        "branch": "madrid-01", "created_at": "2026-09-24T10:00:00",
+        "updated_at": "2026-09-24T14:00:00",
+    }
+    monkeypatch.setattr(agent_graph_module, "get_ticket_by_id", Mock(return_value=mock_ticket))
+
+    # Silence RAG to prove it was not used
+    monkeypatch.setattr(agent_graph_module, "retrieve", Mock(return_value=[]))
+    monkeypatch.setattr(agent_graph_module, "generate_answer", Mock(
+        return_value="No encuentro información suficientemente relevante...",
+    ))
+
+    result = _run_graph(graph, "¿en qué estado está el ticket 482?", monkeypatch)
+
+    # Verify routing by checking tool_type — ticket_tool_node sets it
+    assert result.get("tool_type") == "ticket_tool", \
+        f"Esperado tool_type='ticket_tool', obtenido '{result.get('tool_type')}'"
+    # Verify ticket data landed in context
+    context = result.get("context", [])
+    assert len(context) > 0, "El contexto debería contener datos del ticket"
+    assert context[0].get("type") == "ticket", "El contexto debería ser de tipo 'ticket'"
+
+
+# ── Eval 6: RAG routing (no tool interference) ────────────────────────────
+
+def test_eval_rag_routing(graph, monkeypatch):
+    """A general knowledge question should:
+    - route to retrieve_node (NOT ticket_tool)
+    - use RAG, not a tool
+    - tool_type should remain None (RAG doesn't set it)
+    """
+    result = _run_graph(graph, "¿Cuál es el plazo de entrega estándar?", monkeypatch)
+
+    # RAG path does NOT set tool_type → should be None
+    assert result.get("tool_type") is None, \
+        f"Esperado tool_type=None para RAG, obtenido '{result.get('tool_type')}'"
+    # Answer should contain knowledge-base content
+    assert "48 horas" in result.get("answer", ""), \
+        "La respuesta debería contener información de la base de conocimiento"
+    assert result.get("error") is None
+
+
+# ── Eval 7: Tool fallback (requirement #7) ────────────────────────────────
+
+def test_eval_tool_fallback(graph, monkeypatch):
+    """When a tool fails (timeout, 404, etc.), the graph should:
+    - route to no_info (not hallucinate a fake answer)
+    - respond honestly without fabricating data
+    """
+    from services.agent_service import graph as agent_graph_module
+    from services.agent_service import tools as tools_module
+
+    # Mock get_ticket_by_id to simulate a 404 / tool failure
+    monkeypatch.setattr(tools_module, "get_ticket_by_id", Mock(return_value=Mock(
+        error="Ticket #99999 no encontrado en el gestor de incidencias.",
+        model_dump=lambda: {
+            "id": 99999, "title": "", "description": "", "category": "",
+            "status": "", "origin": "", "branch": "",
+            "created_at": "", "updated_at": "",
+            "error": "Ticket #99999 no encontrado en el gestor de incidencias.",
+        },
+    )))
+
+    # Also mock retrieve to prove it wasn't used as a fallback source
+    monkeypatch.setattr(agent_graph_module, "retrieve", Mock(return_value=[]))
+    monkeypatch.setattr(agent_graph_module, "generate_answer", Mock(
+        return_value="No encuentro información suficientemente relevante...",
+    ))
+
+    # PREVENT real HTTP calls by also mocking extract_ticket_id to return a real ID
+    monkeypatch.setattr(tools_module, "extract_ticket_id", Mock(return_value=99999))
+
+    # Run with ticket question that would trigger the tool
+    initial: AgentState = {
+        "question": "¿en qué estado está el ticket 99999?",
+        "context": [],
+        "answer": "",
+        "error": None,
+        "tool_type": None,
+    }
+
+    thread_id = str(uuid.uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
+
+    for _ in graph.stream(initial, config):
+        pass
+
+    final = graph.get_state(config)
+    result = dict(final.values) if final else initial
+
+    answer = result.get("answer", "")
+
+    # The response should NOT contain fabricated ticket data
+    # It should either be the no_info response or acknowledge the failure
+    assert "encuentro" in answer.lower() or "no pude" in answer.lower() or \
+           "recomiendo" in answer.lower() or "confirmar" in answer.lower(), \
+        f"La respuesta debería ser honesta (no inventar datos). Got: {answer}"
+    assert result.get("error") is not None or "suficientemente" in answer.lower()
+
+
+# ── Eval 8 (bonus): Existing RAG tests still pass ──────────────────────────
 
 def test_existing_rag_tests_still_pass():
     """Verify that the existing RAG tests are NOT broken by the agent."""

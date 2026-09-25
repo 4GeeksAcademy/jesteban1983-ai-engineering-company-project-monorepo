@@ -38,15 +38,22 @@ class TraceRecorder:
     ) -> None:
         if run_id not in self._traces:
             return
+
+        # Extract tool_type from the output if available (Part 2 extension)
+        tool_type = None
+        if isinstance(output_data, dict):
+            tool_type = output_data.get("tool_type")
+
         self._traces[run_id][0]["nodes"].append(
             {
                 "node": node,
+                "tool_type": tool_type,  # "rag" | "ticket_tool" | "inventory_tool" | None
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "input": _summarize(input_data),
                 "output": _summarize(output_data),
             }
         )
-        logger.info("Trace [%s] node=%s → %s", run_id, node, _summarize(output_data))
+        logger.info("Trace [%s] node=%s tool=%s → %s", run_id, node, tool_type, _summarize(output_data))
 
     def get_trace(self, run_id: str) -> dict[str, Any] | None:
         raw = self._traces.get(run_id)
