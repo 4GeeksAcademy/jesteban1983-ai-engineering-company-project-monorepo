@@ -24,6 +24,7 @@ from .routes.telemetry import router as telemetry_router
 from .routes.pipeline import router as pipeline_router
 from .routes.tasks import router as tasks_router
 from .routes.knowledge import router as knowledge_router
+from .routes.agent import router as agent_router
 
 from services.tasks import analyze_incidents_task
 
@@ -125,6 +126,9 @@ app.include_router(pipeline_router)
 # GET /tasks/{task_id}
 app.include_router(tasks_router)
 app.include_router(knowledge_router)
+
+# Registrar router del agente LangGraph (AI Agent)
+app.include_router(agent_router)
 
 
 _last_analysis: dict | None = None
