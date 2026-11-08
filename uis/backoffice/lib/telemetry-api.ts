@@ -2,17 +2,13 @@
 //
 // Propósito: Funciones para consultar los endpoints GET de telemetría
 // (eventos y resumen agregado) desde el frontend del backoffice.
-//
-// Los endpoints se sirven a través del rewrite de Next.js:
-//   /telemetry/events   ← proxy → http://localhost:8004/telemetry/events
-//   /telemetry/summary  ← proxy → http://localhost:8004/telemetry/summary
-//
-// No requiere autenticación (la telemetría es write-only desde el frontend
-// y de solo lectura para el dashboard).
-//
-// Uso:
-//   import { fetchTelemetryEvents, fetchTelemetrySummary } from "@/lib/telemetry-api"
-//   const summary = await fetchTelemetrySummary()
+// Incluye fallback a métricas analíticas simuladas en Vercel.
+
+import {
+  getDemoTelemetryEvents,
+  getDemoTelemetrySummary,
+  getDemoTelemetryReport,
+} from "./demo-fallback";
 
 // ─────────────────────────────────────────────────────────────
 // Tipos — Corresponden a los modelos Pydantic del backend
@@ -101,11 +97,15 @@ export async function fetchTelemetryEvents(params?: {
   const qs = searchParams.toString();
   const url = `/telemetry/events${qs ? `?${qs}` : ""}`;
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Telemetry fetch failed: ${response.status}`);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return getDemoTelemetryEvents(params);
+    }
+    return response.json();
+  } catch {
+    return getDemoTelemetryEvents(params);
   }
-  return response.json();
 }
 
 /**
@@ -113,22 +113,20 @@ export async function fetchTelemetryEvents(params?: {
  * GET /telemetry/summary
  */
 export async function fetchTelemetrySummary(): Promise<TelemetrySummaryResponse> {
-  const response = await fetch("/telemetry/summary");
-  if (!response.ok) {
-    throw new Error(`Telemetry summary fetch failed: ${response.status}`);
+  try {
+    const response = await fetch("/telemetry/summary");
+    if (!response.ok) {
+      return getDemoTelemetrySummary();
+    }
+    return response.json();
+  } catch {
+    return getDemoTelemetrySummary();
   }
-  return response.json();
 }
 
 /**
  * Obtiene el reporte técnico de telemetría con análisis Pandas.
  * GET /telemetry/report
- *
- * Fase 4 — Reporte técnico: usa el pipeline analysis.py en backend
- * que aplica cargar (SQL) → refinar (Pandas) → convertir tipos → agrupar → agregar.
- *
- * @param start_date ISO 8601 opcional (default: 7 días atrás)
- * @param end_date   ISO 8601 opcional (default: ahora)
  */
 export async function fetchTelemetryReport(
   start_date?: string,
@@ -141,9 +139,13 @@ export async function fetchTelemetryReport(
   const qs = searchParams.toString();
   const url = `/telemetry/report${qs ? `?${qs}` : ""}`;
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Telemetry report fetch failed: ${response.status}`);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return getDemoTelemetryReport();
+    }
+    return response.json();
+  } catch {
+    return getDemoTelemetryReport();
   }
-  return response.json();
 }

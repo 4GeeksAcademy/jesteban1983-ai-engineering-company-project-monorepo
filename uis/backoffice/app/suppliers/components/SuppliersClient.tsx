@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { Supplier, VALID_CATEGORIES } from "../types";
 import { authHeaders } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth-actions";
+import {
+  getDemoSuppliers,
+  toggleDemoSupplierStatus,
+  updateDemoSupplierRate,
+  createDemoSupplier,
+} from "@/lib/demo-fallback";
 
 // Usamos ruta relativa para que Next.js proxy (next.config.ts) redirija
 // al backend FastAPI. En codespace el navegador no puede acceder
@@ -58,9 +64,12 @@ export default function SuppliersClient() {
       const data = await res.json();
       setSuppliers(data);
     } catch (err: any) {
-      if (err.message !== "Sesión expirada. Redirigiendo al login...") {
-        setError(err.message);
+      if (err.message === "Sesión expirada. Redirigiendo al login...") {
+        return;
       }
+      // Fallback interactivo para Vercel
+      const fallbackData = getDemoSuppliers(filterCountry, filterCategory);
+      setSuppliers(fallbackData);
     } finally {
       setLoading(false);
     }
@@ -82,9 +91,9 @@ export default function SuppliersClient() {
       if (!res.ok) throw new Error("Error al cambiar estado");
       setSuppliers(suppliers.map(s => s.id === id ? { ...s, status: newStatus as "active" | "suspended" } : s));
     } catch (err: any) {
-      if (err.message !== "Sesión expirada. Redirigiendo al login...") {
-        alert("No se pudo actualizar el estado.");
-      }
+      if (err.message === "Sesión expirada. Redirigiendo al login...") return;
+      const updated = toggleDemoSupplierStatus(id, newStatus as "active" | "suspended");
+      setSuppliers(updated);
     }
   };
 
@@ -111,9 +120,9 @@ export default function SuppliersClient() {
       const updatedSupplier = await res.json();
       setSuppliers(suppliers.map(s => s.id === id ? updatedSupplier : s));
     } catch (err: any) {
-      if (err.message !== "Sesión expirada. Redirigiendo al login...") {
-        alert(`Error: ${err.message}`);
-      }
+      if (err.message === "Sesión expirada. Redirigiendo al login...") return;
+      const updated = updateDemoSupplierRate(id, newRate);
+      setSuppliers(suppliers.map(s => s.id === id ? updated : s));
     }
   };
 
@@ -152,9 +161,10 @@ export default function SuppliersClient() {
       setSuppliers([...suppliers, newSupplier]);
       setShowForm(false);
     } catch (err: any) {
-      if (err.message !== "Sesión expirada. Redirigiendo al login...") {
-        setFormError(err.message);
-      }
+      if (err.message === "Sesión expirada. Redirigiendo al login...") return;
+      const created = createDemoSupplier(payload as any);
+      setSuppliers([...suppliers, created]);
+      setShowForm(false);
     }
   };
 

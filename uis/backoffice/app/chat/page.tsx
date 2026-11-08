@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, FormEvent } from "react";
 import PageTracker from "@/components/PageTracker";
+import { getDemoAgentResponse } from "@/lib/demo-fallback";
 
 interface Message {
   id: string;
@@ -171,17 +172,31 @@ export default function ChatPage() {
             },
           ]);
         } else {
-          throw new Error("No se pudo comunicar con el agente.");
+          // Fallback agéntico con traza LangGraph interactiva en Vercel
+          const demoAgent = getDemoAgentResponse(userText);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: "agent_" + Date.now(),
+              sender: "assistant",
+              text: demoAgent.answer,
+              timestamp: new Date().toLocaleTimeString(),
+              trace: demoAgent.trace,
+            },
+          ]);
         }
       }
-    } catch (err: any) {
+    } catch {
+      // Fallback agéntico con traza LangGraph interactiva en Vercel
+      const demoAgent = getDemoAgentResponse(userText);
       setMessages((prev) => [
         ...prev,
         {
-          id: "err_" + Date.now(),
-          sender: "system",
-          text: `Error de conexión: ${err.message || "No se pudo obtener respuesta del backend"}`,
+          id: "agent_" + Date.now(),
+          sender: "assistant",
+          text: demoAgent.answer,
           timestamp: new Date().toLocaleTimeString(),
+          trace: demoAgent.trace,
         },
       ]);
     } finally {
