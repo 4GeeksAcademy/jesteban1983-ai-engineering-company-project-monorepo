@@ -75,7 +75,6 @@
   - [ ] Paso 8: Validación manual (2 GET seguidos, invalidación tras escritura, Swagger)
   - [ ] Paso 9: CACHING_REPORT.md con mediciones reales
   - [ ] Paso 10: Commit final y PR hacia main
-<<<<<<< HEAD
 - [x] **Hito — Diseño de Pipeline de Desempeño de Negocio (Parte 1 de 3)**:
   - [x] Rama `feature/pipeline-business-performance` creada desde `main`
   - [x] Obtenido CONTEXT-trackflow.md (data-pipelines) del syllabus 4Geeks: entregable "Weekly Warehouse & Client Performance Report", 4 KPIs (Inbound Volume, Outbound Throughput, Stockout Frequency, Discrepancy Rate), grain warehouse×client_id×ISO week, tabla destino `reporting.weekly_warehouse_client_performance` con UNIQUE(warehouse, client_id, week_start)
@@ -128,3 +127,18 @@
   - [x] Guardarraíles de seguridad y mutación segura: validación Pydantic, límite blast radius (máx 200), dry-run previo y confirmación explícita en `create_restock_order`, log de auditoría
   - [x] Tests unitarios superados al 100% en `mcps/company-tools/test_server.py`
   - [x] Simulación E2E de cliente/agente MCP sobre protocolo stdio exitosa en `mcps/company-tools/agent_simulator.py`
+
+- [x] **Hito — Memoria y Auto-mejora de Agentes (Parte 1 de 2: Memoria en Capas)**:
+  - [x] Rama `feature/agent-memory` creada e inicializada desde `main`
+  - [x] Arquitectura de memoria en capas implementada en `agents/operations-agent/memory.py`:
+    - [x] Working memory (corto plazo): conversación de sesión activa acotada (FIFO)
+    - [x] Episodic memory (largo plazo): hechos, preferencias y decisiones persistidas en JSON local
+    - [x] Semantic memory: reglas y políticas inmutables de la compañía (artículos frágiles, SLA)
+    - [x] Explicit memory interface: operaciones delimitadas `remember()`, `recall()`, `forget()` y `clear_session()`
+    - [x] Política de desalojo (eviction) por menor relevancia para prevenir saturación
+  - [x] Integración del agente en `agents/operations-agent/agent.py`:
+    - [x] Recuperación acotada antes de responder (evita context bloat)
+    - [x] Extracción y almacenamiento explícito de preferencias declaradas
+    - [x] Comportamiento persistente entre sesiones independientes (`new_session()`)
+  - [x] Suite de tests multi-sesión validada al 100% en `agents/operations-agent/test_memory.py`
+  - [x] Documentación técnica en `agents/operations-agent/README.md`
