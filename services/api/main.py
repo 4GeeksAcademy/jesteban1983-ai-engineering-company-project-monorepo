@@ -18,6 +18,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 try:
     from .analyzer import analyze_incidents, build_export_rows, parse_csv_text
+    from .models import AnalysisResponse, AppInfo, HealthResponse
     from .routes.suppliers import router as suppliers_router
     from .routes.users import router as users_router
     from .routes.profiles import router as profiles_router
@@ -35,6 +36,7 @@ try:
     from .core.security import SecurityHeadersMiddleware
 except ImportError:
     from analyzer import analyze_incidents, build_export_rows, parse_csv_text
+    from models import AnalysisResponse, AppInfo, HealthResponse
     from routes.suppliers import router as suppliers_router
     from routes.users import router as users_router
     from routes.profiles import router as profiles_router
@@ -222,13 +224,13 @@ app.include_router(ai_security_router)
 _last_analysis: dict | None = None
 
 
-@app.get("/")
-def root() -> dict:
-    return {
-        "app": settings.app_name,
-        "docs": "/docs",
-        "health": "/health",
-        "endpoints": {
+@app.get("/", response_model=AppInfo)
+def root() -> AppInfo:
+    return AppInfo(
+        app=settings.app_name,
+        docs="/docs",
+        health="/health",
+        endpoints={
             "suppliers": "/suppliers/",
             "incidents_analyze": "/api/incidents/analyze",
             "incidents_export": "/api/incidents/results/export",
@@ -243,16 +245,17 @@ def root() -> dict:
             "chat_stats": "/api/chat/stats",
             "ai_security": "/api/ai-security",
         },
-    }
+    )
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+@app.get("/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    return HealthResponse(status="ok")
 
 
 @app.post("/api/incidents/analyze")
-async def analyze_uploaded_incidents(file: UploadFile = File(...)) -> JSONResponse:
+async def analyze_uploaded_incidents(file: UploadFile = File(...)):
+    global _last_analysis
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing file name")
 
@@ -279,17 +282,24 @@ async def analyze_uploaded_incidents(file: UploadFile = File(...)) -> JSONRespon
     if not rows:
         raise HTTPException(status_code=400, detail="CSV has no data rows")
 
-    # Encolar la tarea en Celery para procesamiento asíncrono
-    task = analyze_incidents_task.delay(csv_content=content, filename=file.filename)
+    global _last_analysis
+    _last_analysis = analyze_incidents(rows)
 
-    return JSONResponse(
-        status_code=202,
-        content={
-            "task_id": task.id,
-            "status": "PENDING",
-            "message": "Analysis started. Use GET /tasks/{task_id} to check progress.",
-        },
-    )
+    if analyze_incidents_task is not None:
+        try:
+            task = analyze_incidents_task.delay(csv_content=content, filename=file.filename)
+            return JSONResponse(
+                status_code=202,
+                content={
+                    "task_id": task.id,
+                    "status": "PENDING",
+                    "message": "Analysis started. Use GET /tasks/{task_id} to check progress.",
+                },
+            )
+        except Exception:
+            pass
+
+    return AnalysisResponse(**_last_analysis)
 
 
 @app.get("/api/incidents/results/export")

@@ -27,8 +27,32 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
 from core.security import check_rate_limit, log_security_event
 
-from ..dependencies.auth_deps import get_current_user
-from ..services.auth_service import (
+try:
+    from ..dependencies.auth_deps import get_current_user
+    from ..services.auth_service import (
+        create_access_token,
+        create_reset_token,
+        hash_password,
+        verify_password,
+        verify_reset_token,
+    )
+    from ..services.user_service import get_user_by_email, get_user_by_id, update_user
+    from ..services.profile_service import get_profile_by_user_id
+    from ..models import MessageResponse
+    from ..models.profile_models import ProfileResponse
+except ImportError:
+    from dependencies.auth_deps import get_current_user
+    from services.auth_service import (
+        create_access_token,
+        create_reset_token,
+        hash_password,
+        verify_password,
+        verify_reset_token,
+    )
+    from services.user_service import get_user_by_email, get_user_by_id, update_user
+    from services.profile_service import get_profile_by_user_id
+    from models import MessageResponse
+    from models.profile_models import ProfileResponse
     create_access_token,
     create_reset_token,
     hash_password,
@@ -68,7 +92,7 @@ class AuthMeResponse(BaseModel):
     email: str
     role: str
     is_active: bool
-    profile: Optional[dict] = None
+    profile: Optional[ProfileResponse] = None
 
 
 # ── Schemas para AUTH-03: Restablecimiento de contraseña ──────
@@ -178,7 +202,7 @@ def get_auth_me(current_user: dict = Depends(get_current_user)):
 # AUTH-03: POST /auth/forgot-password
 # ════════════════════════════════════════════════════════════════
 
-@router.post("/forgot-password", status_code=200)
+@router.post("/forgot-password", response_model=MessageResponse, status_code=200)
 def forgot_password(request_body: ForgotPasswordRequest, request: Request):
     """
     Solicita restablecimiento de contraseña con protección contra abuso.
@@ -201,16 +225,16 @@ def forgot_password(request_body: ForgotPasswordRequest, request: Request):
         logger.info(f"Email de reset enviado a {email}")
 
     # Siempre devolver 200
-    return {
-        "message": "Si esa dirección está registrada, recibirás un enlace de restablecimiento en breve."
-    }
+    return MessageResponse(
+        message="Si esa dirección está registrada, recibirás un enlace de restablecimiento en breve."
+    )
 
 
 # ════════════════════════════════════════════════════════════════
 # AUTH-03: POST /auth/reset-password
 # ════════════════════════════════════════════════════════════════
 
-@router.post("/reset-password")
+@router.post("/reset-password", response_model=MessageResponse)
 def reset_password(request: ResetPasswordRequest):
     """
     Restablece la contraseña usando un token de reset.
@@ -258,14 +282,14 @@ def reset_password(request: ResetPasswordRequest):
 
     logger.info(f"Contraseña restablecida para user_id={user_id}")
 
-    return {"message": "Contraseña actualizada correctamente. Ya puedes iniciar sesión."}
+    return MessageResponse(message="Contraseña actualizada correctamente. Ya puedes iniciar sesión.")
 
 
 # ════════════════════════════════════════════════════════════════
 # AUTH-03: POST /auth/change-password
 # ════════════════════════════════════════════════════════════════
 
-@router.post("/change-password")
+@router.post("/change-password", response_model=MessageResponse)
 def change_password(
     request: ChangePasswordRequest,
     current_user: dict = Depends(get_current_user),
@@ -297,4 +321,4 @@ def change_password(
 
     logger.info(f"Contraseña cambiada para user_id={user_id}")
 
-    return {"message": "Contraseña actualizada correctamente."}
+    return MessageResponse(message="Contraseña actualizada correctamente.")

@@ -22,6 +22,12 @@ from .incident import (
     IncidentResponse,
     SummaryResponse,
 )
+try:
+    from .message_models import MessageResponse
+    from .analysis_models import AnalysisResponse, AppInfo, HealthResponse, SatisfactionSummary, PercentageBreakdown
+except ImportError:
+    from models.message_models import MessageResponse
+    from models.analysis_models import AnalysisResponse, AppInfo, HealthResponse, SatisfactionSummary, PercentageBreakdown
 
 __all__ = [
     "Category",
@@ -36,4 +42,10 @@ __all__ = [
     "IncidentUpdateStatus",
     "IncidentResponse",
     "SummaryResponse",
+    "MessageResponse",
+    "AnalysisResponse",
+    "AppInfo",
+    "HealthResponse",
+    "SatisfactionSummary",
+    "PercentageBreakdown",
 ]
