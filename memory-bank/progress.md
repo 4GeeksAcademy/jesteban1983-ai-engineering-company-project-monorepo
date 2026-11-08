@@ -217,3 +217,41 @@
   - [x] A05 Security Misconfiguration: Inyección de cabeceras de seguridad (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `CSP`, `HSTS`, `Referrer-Policy`, etc.)
   - [x] A09 Security Logging: Registro auditado estructurado con IPs, identificadores y resultado
   - [x] Suite de Pruebas Automatizadas: `services/api/tests/test_owasp_security.py` con 13 tests pasando exitosamente (13/13)
+- [x] **Secure AI Applications — Prácticas Seguras en la Integración de IA en Sistemas (rama `feature/secure-ai-integration`)**:
+  - [x] **Fase 1: Análisis y Especificación Técnica**:
+    - [x] `services/api/docs/SECURE_AI_GOVERNANCE_NIST.md` redactado.
+    - [x] Inventario de agentes y sistemas de IA clasificados bajo EU AI Act (Art. 50) y GDPR.
+    - [x] Matriz de riesgos mapeada a OWASP LLM Top 10 (LLM01, LLM02, LLM06, LLM09, LLM10).
+    - [x] Hoja de ruta de gobernanza alineada a las 6 funciones de NIST CSF 2.0 (Govern, Identify, Protect, Detect, Respond, Recover).
+  - [x] **Fase 2: Implementación de Guardrails Deterministas y Endpoints**:
+    - [x] Módulo central `services/api/core/ai_guardrails.py`:
+      - `PromptInjectionGuard` (detección heurística pre-flight y sandboxing XML).
+      - `SensitiveDataRedactor` (anonimización de PII: tarjetas, emails, teléfonos, DNI y secretos/tokens).
+      - `HumanInTheLoopGate` (HITL para acciones destructivas y mitigación de Excessive Agency LLM06).
+      - `ModelOutputValidator` (bloqueo de payloads destructivos SQL/Shell/XSS en tool calls).
+      - `TokenBudgetRateLimiter` (cuotas por sesión y circuit breaker contra loops de recursión).
+      - `AIGovernanceRegistry` (registro de modelos y herramientas según NIST e inventario auditable).
+    - [x] Router FastAPI `services/api/routes/ai_security.py` con 6 endpoints protegidos y de gobernanza.
+    - [x] Integración en `services/api/main.py`.
+    - [x] Configuración de testing con `services/api/pytest.ini`.
+    - [x] Suite de 22 pruebas automatizadas en `services/api/tests/test_ai_security.py` (100% passed).
+    - [x] Verificación de salud TypeScript en frontends (`backoffice` y `website`).
+  - [x] **Fase 3: Verificación de Integración, Endurecimiento y Trazabilidad Forense**:
+    - [x] Simulación en tiempo real de vectores de ataque de IA sobre la API FastAPI.
+    - [x] Mitigación y bloqueo al 100% de ataques de prompt injection, evasión de sandbox, PII leakage, agency excesiva e inyección en tool calls.
+    - [x] Circuit breaker agéntico verificado (HTTP 429 tras exceso de iteraciones).
+    - [x] Trazabilidad y auditoría forense comprobadas en logger estructurado (`ai_security.audit`).
+    - [x] Generación del informe de evidencias y defensa técnica: `services/api/docs/AI_SECURITY_VERIFICATION_REPORT.md`.
+  - [x] **Fase 4: Suite de Pruebas Automatizadas (Pytest)**:
+    - [x] 22 tests unitarios y de integración en `services/api/tests/test_ai_security.py` cubriendo los 6 guardrails de seguridad y los endpoints FastAPI (100% passed).
+  - [x] **Fase 5: Sincronización, Verificación de Calidad y Push a GitHub**:
+    - [x] Verificación de tipos TypeScript en `uis/backoffice` y `uis/website` (0 errores).
+    - [x] Verificación completa de suite `pytest` (22 passed).
+    - [x] Sincronización de memoria en `memory-bank/progress.md`.
+    - [x] Subida a repositorio remoto (`feature/secure-ai-integration`).
+- [x] **Proyecto Final & Capstone — Consolidación y Cierre de Plataforma**:
+  - [x] Lección *"Has terminado el curso, ¿y ahora qué?"* analizada a fondo.
+  - [x] Plan de consolidación, merges y navegación del monorepo redactado en [`docs/CAPSTONE_CONSOLIDATION_PLAN.md`](docs/CAPSTONE_CONSOLIDATION_PLAN.md).
+  - [ ] Ejecución de merges en rama integradora (esperando feedback/aprobación de PRs de hitos previos).
+  - [ ] Conexión y diseño del Hub navegable de UI en Backoffice (navegación 100% interactiva por clics).
+  - [ ] Grabación del vídeo pitch de 5 minutos y entrega final.

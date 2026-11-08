@@ -30,6 +30,7 @@ try:
     from .routes.agent import router as agent_router
     from .routes.notifications import router as notifications_router
     from .routes.chat_ws import router as chat_ws_router
+    from .routes.ai_security import router as ai_security_router
     from .core.database import init_db, close_db
     from .core.security import SecurityHeadersMiddleware
 except ImportError:
@@ -46,6 +47,7 @@ except ImportError:
     from routes.agent import router as agent_router
     from routes.notifications import router as notifications_router
     from routes.chat_ws import router as chat_ws_router
+    from routes.ai_security import router as ai_security_router
     from core.database import init_db, close_db
     from core.security import SecurityHeadersMiddleware
 
@@ -213,6 +215,9 @@ app.include_router(notifications_router)
 # Registrar router de chat en tiempo real por WebSocket
 app.include_router(chat_ws_router)
 
+# Registrar router de seguridad y gobernanza de IA (Secure AI Applications)
+app.include_router(ai_security_router)
+
 
 _last_analysis: dict | None = None
 
@@ -236,6 +241,7 @@ def root() -> dict:
             "notifications_publish": "/api/notifications/publish",
             "chat_websocket": "/ws/chat/{session_id}",
             "chat_stats": "/api/chat/stats",
+            "ai_security": "/api/ai-security",
         },
     }
 
