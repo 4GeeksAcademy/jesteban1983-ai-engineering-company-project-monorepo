@@ -13,3 +13,4 @@ celery[redis]==5.4.0
 flower==2.0.1
 httpx==0.28.1
 qdrant-client==1.14.2
+asyncpg==0.30.0

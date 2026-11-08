@@ -1,6 +1,54 @@
-version: "3.9"
+# ============================================
+# docker-compose.yml - TrackFlow Monorepo
+# ============================================
+# Orquestación completa del stack TrackFlow para desarrollo local.
+#
+# Servicios:
+#   postgres        - Base de datos PostgreSQL 16 para inventory / telemetry
+#   redis           - Broker para Celery y caching
+#   flower          - Monitor Celery
+#   qdrant          - Base de datos vectorial para RAG
+#   api-backend     - FastAPI Principal (servicios/api)
+#   inventory-api   - FastAPI Inventory (servicios/inventory)
+#   website         - Next.js Sitio Web Público
+#   backoffice      - Next.js Panel de Administración
+# ============================================
+
+name: trackflow
+
+networks:
+  trackflow-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  api-tinydb-data:
+  redis_data:
+  qdrant_data:
 
 services:
+  # 1. PostgreSQL (Base de datos)
+  postgres:
+    image: postgres:16-alpine
+    container_name: trackflow-postgres
+    restart: unless-stopped
+    networks:
+      - trackflow-net
+    environment:
+      POSTGRES_DB: inventory
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpassword}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis (Broker & Cache)
   redis:
     image: redis:7-alpine
     container_name: trackflow-redis
@@ -8,6 +56,8 @@ services:
       - "6379:6379"
     command: redis-server --maxmemory-policy noeviction
     restart: unless-stopped
+    networks:
+      - trackflow-net
     volumes:
       - redis_data:/data
     healthcheck:
@@ -16,6 +66,7 @@ services:
       timeout: 3s
       retries: 5
 
+  # 3. Flower (Celery UI)
   flower:
     image: mher/flower:2.0
     container_name: trackflow-flower
@@ -27,8 +78,11 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    networks:
+      - trackflow-net
     restart: unless-stopped
 
+  # 4. Qdrant (Vector DB para RAG)
   qdrant:
     image: qdrant/qdrant:v1.13.2
     container_name: trackflow-qdrant
@@ -37,6 +91,8 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    networks:
+      - trackflow-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:6333/healthz"]
@@ -44,6 +100,96 @@ services:
       timeout: 5s
       retries: 5
 
-volumes:
-  redis_data:
-  qdrant_data:
+  # 5. API Backend (FastAPI Principal)
+  api-backend:
+    build:
+      context: services/api
+      dockerfile: Dockerfile
+    container_name: trackflow-api-backend
+    restart: unless-stopped
+    networks:
+      - trackflow-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - APP_NAME=TrackFlow API
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002
+      - DATABASE_URL=postgresql://app:${DB_PASSWORD:-devpassword}@postgres:5432/inventory
+      - DB_SSL_MODE=disable
+    ports:
+      - "8001:8000"
+    volumes:
+      - api-tinydb-data:/app/tinydb
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/docs\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 6. Inventory API (FastAPI Inventario)
+  inventory-api:
+    build:
+      context: services/inventory
+      dockerfile: Dockerfile
+    container_name: trackflow-inventory-api
+    restart: unless-stopped
+    networks:
+      - trackflow-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - APP_NAME=TrackFlow Inventory API
+      - DATABASE_URL=postgresql+asyncpg://app:${DB_PASSWORD:-devpassword}@postgres:5432/inventory
+      - DB_SSL_MODE=disable
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002
+    ports:
+      - "8003:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # 7. Website (Sitio Web Público Next.js)
+  website:
+    build:
+      context: .
+      dockerfile: uis/website/Dockerfile
+    container_name: trackflow-website
+    restart: unless-stopped
+    networks:
+      - trackflow-net
+    depends_on:
+      inventory-api:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_INVENTORY_API_URL=http://localhost:8003
+    ports:
+      - "3000:3000"
+
+  # 8. Backoffice (Panel de Administración Next.js)
+  backoffice:
+    build:
+      context: .
+      dockerfile: uis/backoffice/Dockerfile
+    container_name: trackflow-backoffice
+    restart: unless-stopped
+    networks:
+      - trackflow-net
+    depends_on:
+      api-backend:
+        condition: service_healthy
+      inventory-api:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
+      - NEXT_PUBLIC_INVENTORY_API_URL=http://localhost:8003
+      - NEXT_PUBLIC_TELEMETRY_ENDPOINT=http://localhost:8001/telemetry/events
+      - INCIDENTS_API_INTERNAL_URL=http://api-backend:8000
+    ports:
+      - "3002:3002"

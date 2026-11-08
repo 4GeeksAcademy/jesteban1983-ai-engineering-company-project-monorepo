@@ -8,38 +8,77 @@ from io import StringIO
 
 import traceback
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .analyzer import analyze_incidents, build_export_rows, parse_csv_text
-from .routes.suppliers import router as suppliers_router
-from .routes.users import router as users_router
-from .routes.profiles import router as profiles_router
-from .routes.auth import router as auth_router
-from .routes.incidents import router as incidents_router
-from .routes.telemetry import router as telemetry_router
-from .routes.pipeline import router as pipeline_router
-from .routes.tasks import router as tasks_router
-from .routes.knowledge import router as knowledge_router
-from .routes.agent import router as agent_router
+try:
+    from .analyzer import analyze_incidents, build_export_rows, parse_csv_text
+    from .routes.suppliers import router as suppliers_router
+    from .routes.users import router as users_router
+    from .routes.profiles import router as profiles_router
+    from .routes.auth import router as auth_router
+    from .routes.incidents import router as incidents_router
+    from .routes.telemetry import router as telemetry_router
+    from .routes.pipeline import router as pipeline_router
+    from .routes.tasks import router as tasks_router
+    from .routes.knowledge import router as knowledge_router
+    from .routes.agent import router as agent_router
+    from .core.database import init_db, close_db
+except ImportError:
+    from analyzer import analyze_incidents, build_export_rows, parse_csv_text
+    from routes.suppliers import router as suppliers_router
+    from routes.users import router as users_router
+    from routes.profiles import router as profiles_router
+    from routes.auth import router as auth_router
+    from routes.incidents import router as incidents_router
+    from routes.telemetry import router as telemetry_router
+    from routes.pipeline import router as pipeline_router
+    from routes.tasks import router as tasks_router
+    from routes.knowledge import router as knowledge_router
+    from routes.agent import router as agent_router
+    from core.database import init_db, close_db
 
-from services.tasks import analyze_incidents_task
-
+try:
+    from services.tasks import analyze_incidents_task
+except ImportError:
+    analyze_incidents_task = None
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_name: str = "TrackFlow Incidents API"
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,http://localhost:3001"
     telemetry_endpoint: str = ""
 
 
 settings = Settings()
-app = FastAPI(title=settings.app_name)
+
+
+# ─────────────────────────────────────────────────────────────
+# Lifespan — Inicializar/cerrar pool de PostgreSQL
+# ─────────────────────────────────────────────────────────────
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Inicializa el pool de BD al arrancar, lo cierra al detener."""
+    try:
+        await init_db()
+    except Exception as e:
+        logging.getLogger(__name__).warning("PostgreSQL pool init skipped or failed: %s", e)
+    yield
+    try:
+        await close_db()
+    except Exception:
+        pass
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 logger = logging.getLogger("api.timing")
 
 @app.middleware("http")
