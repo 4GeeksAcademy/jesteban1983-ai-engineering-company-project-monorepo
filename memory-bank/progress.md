@@ -92,3 +92,27 @@
     - [x] Documento validado: 419 líneas, 12 fences balanceados, 0 referencias a columnas inexistentes
 
 - [x] **Hito 7 — RAG y Knowledge Base de TrackFlow**: rama `feature/rag-knowledge-base`; corpus oficial en `docs/company-knowledge-base/` con cuatro documentos y 22 chunks semánticos; pipeline directo con Qdrant (`trackflow_knowledge`), embeddings y generación configurables mediante modelos distintos; recuperación con `min_score`; endpoint FastAPI `POST /knowledge/query`; interfaz mínima en Backoffice `/knowledge`; pruebas unitarias con mocks; evaluación Recall@3 con 8 preguntas; diseño en `docs/rag/rag-design.md`.
+
+- [x] **Real-Time Communication — Sistemas en Tiempo Real: Notificaciones SSE (Parte 1 de 2)**:
+  - [x] Rama `feature/sse-notifications` creada desde `main`
+  - [x] Especificación técnica completa documentada en `services/api/docs/SSE_NOTIFICATIONS.md`
+  - [x] Modelos de datos SSE en `services/api/models/notification_models.py` (`SSEEventPayload`, `NotificationPublishRequest`, `NotificationChannel`, `NotificationSeverity`, `format_sse()`)
+  - [x] Bus de eventos en tiempo real en `services/api/services/sse_service.py` (`SSENotificationBus` con cola `asyncio.Queue` por suscriptor, filtrado por tópicos, buffer circular para reconexión con `Last-Event-ID` y comentarios heartbeat `: ping - keep-alive\n\n`)
+  - [x] Router FastAPI en `services/api/routes/notifications.py`:
+    - [x] `GET /api/notifications/stream` (stream unidireccional `text/event-stream`, `no-cache`, `X-Accel-Buffering: no`, evento inicial `connected`, control de desconexión y liberación de recursos)
+    - [x] `POST /api/notifications/publish` (publicación interna y broadcast concurrent a suscriptores)
+    - [x] `GET /api/notifications/stats` (métricas de conexiones activas, eventos emitidos y distribución por canal)
+  - [x] Integración de router en `services/api/main.py` y catálogo de endpoints en `/`
+  - [x] Suite de pruebas automatizadas en `services/api/tests/test_sse_notifications.py` (10/10 pruebas pasadas en pytest cubriendo formato, bus, replay, endpoints y streaming)
+  - [x] Verificación de tipos TypeScript (`tsc -p uis/backoffice/tsconfig.json --noEmit` sin errores)
+
+- [x] **Real-Time Communication — Sistemas en Tiempo Real: Streaming de Chat por WebSocket (Parte 2 de 2)**:
+  - [x] Rama `feature/websocket-chat` creada
+  - [x] Especificación técnica completa documentada en `services/api/docs/WEBSOCKET_CHAT.md`
+  - [x] Modelos de datos Pydantic v2 en `services/api/models/chat_models.py` (`ChatMessage`, `ClientWSMessage`, `ConnectionAckPayload`, `ChatStartPayload`, `ChatChunkPayload`, `ChatCompletePayload`, `PongPayload`, `ErrorPayload`, `ChatSessionHistoryResponse`)
+  - [x] Gestor centralizado de conexiones en `services/api/services/websocket_manager.py` (`ConnectionManager` con aislamiento por sesión, concurrencia protegida con `asyncio.Lock`, broadcast multi-cliente y limpieza determinista de sockets)
+  - [x] Motor conversacional en `services/api/services/chat_stream_service.py` (`ChatStreamService` con memoria de historial de sesión, respuestas contextualizadas para TrackFlow y generador asíncrono token por token)
+  - [x] Router FastAPI WebSocket y REST en `services/api/routes/chat_ws.py` (`WEBSOCKET /ws/chat/{session_id}`, `GET /api/chat/sessions/{session_id}/history`, `DELETE /api/chat/sessions/{session_id}`, `GET /api/chat/stats`)
+  - [x] Actualización de `TimingMiddleware` a middleware ASGI puro en `services/api/main.py` para permitir paso transparente de WebSocket Upgrades y streaming
+  - [x] Suite de pruebas automatizadas en `services/api/tests/test_websocket_chat.py` (15/15 pruebas pasadas en pytest cubriendo handshake, heartbeat, streaming, errores y multi-cliente)
+  - [x] Verificación de tipos TypeScript (`tsc -p uis/backoffice/tsconfig.json --noEmit` sin errores)

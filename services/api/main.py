@@ -28,6 +28,8 @@ try:
     from .routes.tasks import router as tasks_router
     from .routes.knowledge import router as knowledge_router
     from .routes.agent import router as agent_router
+    from .routes.notifications import router as notifications_router
+    from .routes.chat_ws import router as chat_ws_router
     from .core.database import init_db, close_db
 except ImportError:
     from analyzer import analyze_incidents, build_export_rows, parse_csv_text
@@ -41,6 +43,8 @@ except ImportError:
     from routes.tasks import router as tasks_router
     from routes.knowledge import router as knowledge_router
     from routes.agent import router as agent_router
+    from routes.notifications import router as notifications_router
+    from routes.chat_ws import router as chat_ws_router
     from core.database import init_db, close_db
 
 try:
@@ -81,15 +85,43 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 logger = logging.getLogger("api.timing")
 
-@app.middleware("http")
-async def timing_middleware(request: Request, call_next):
-    start = time.perf_counter()
-    response = await call_next(request)
-    duration = (time.perf_counter() - start) * 1000
-    logger.info(
-        f"{request.method} {request.url.path} → {response.status_code} | {duration:.1f}ms"
-    )
-    return response
+from starlette.types import ASGIApp, Scope, Receive, Send
+
+class TimingMiddleware:
+    """
+    Middleware ASGI para registrar la duración de cada petición HTTP.
+    Permite el paso directo de WebSockets y peticiones de actualización (Upgrade)
+    sin interferir en el ciclo de vida del socket o de respuestas en streaming.
+    """
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Bypass para peticiones de WebSocket Upgrade
+        for name, value in scope.get("headers", []):
+            if name.lower() == b"upgrade" and value.lower() == b"websocket":
+                await self.app(scope, receive, send)
+                return
+
+        start = time.perf_counter()
+        status_code = [200]
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status_code[0] = message.get("status", 200)
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            f"{scope.get('method')} {scope.get('path')} → {status_code[0]} | {duration:.1f}ms"
+        )
+
+app.add_middleware(TimingMiddleware)
 
 origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
 
@@ -169,6 +201,12 @@ app.include_router(knowledge_router)
 # Registrar router del agente LangGraph (AI Agent)
 app.include_router(agent_router)
 
+# Registrar router de notificaciones en tiempo real (Server-Sent Events)
+app.include_router(notifications_router)
+
+# Registrar router de chat en tiempo real por WebSocket
+app.include_router(chat_ws_router)
+
 
 _last_analysis: dict | None = None
 
@@ -188,6 +226,10 @@ def root() -> dict:
             "pipeline_latest_runs": "/pipeline/latest-runs",
             "pipeline_kpis": "/pipeline/kpis",
             "pipeline_stats": "/pipeline/stats",
+            "notifications_stream": "/api/notifications/stream",
+            "notifications_publish": "/api/notifications/publish",
+            "chat_websocket": "/ws/chat/{session_id}",
+            "chat_stats": "/api/chat/stats",
         },
     }
 
