@@ -31,6 +31,7 @@ try:
     from .routes.notifications import router as notifications_router
     from .routes.chat_ws import router as chat_ws_router
     from .core.database import init_db, close_db
+    from .core.security import SecurityHeadersMiddleware
 except ImportError:
     from analyzer import analyze_incidents, build_export_rows, parse_csv_text
     from routes.suppliers import router as suppliers_router
@@ -46,6 +47,7 @@ except ImportError:
     from routes.notifications import router as notifications_router
     from routes.chat_ws import router as chat_ws_router
     from core.database import init_db, close_db
+    from core.security import SecurityHeadersMiddleware
 
 try:
     from services.tasks import analyze_incidents_task
@@ -133,6 +135,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Middleware de Cabeceras de Seguridad HTTP (OWASP A05)
+app.add_middleware(SecurityHeadersMiddleware)
+
 
 # ─────────────────────────────────────────────────────────────
 # Manejador global de excepciones
@@ -155,10 +160,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    """Re-lanza HTTPException tal cual (son intencionales)."""
+    """Re-lanza HTTPException tal cual (son intencionales), preservando cabeceras personalizadas."""
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail},
+        headers=exc.headers,
     )
 
 
