@@ -25,52 +25,42 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
-from core.security import check_rate_limit, log_security_event
-
 try:
     from ..dependencies.auth_deps import get_current_user
     from ..services.auth_service import (
         create_access_token,
         create_reset_token,
         hash_password,
+        invalidate_reset_token,
+        is_token_invalidated,
         verify_password,
         verify_reset_token,
     )
-    from ..services.user_service import get_user_by_email, get_user_by_id, update_user
-    from ..services.profile_service import get_profile_by_user_id
+    from ..services.user_service import get_user_by_email, get_user_by_id, update_user, get_profile_by_user_id
+    from ..services.email_service import send_reset_email
     from ..models import MessageResponse
     from ..models.profile_models import ProfileResponse
-except ImportError:
+    from ..core.errors import safe_error, log_and_raise
+    from ..core.security import check_rate_limit, log_security_event
+    from ..database import users_table, User as UserQuery
+except (ImportError, ValueError):
     from dependencies.auth_deps import get_current_user
     from services.auth_service import (
         create_access_token,
         create_reset_token,
         hash_password,
+        invalidate_reset_token,
+        is_token_invalidated,
         verify_password,
         verify_reset_token,
     )
-    from services.user_service import get_user_by_email, get_user_by_id, update_user
-    from services.profile_service import get_profile_by_user_id
+    from services.user_service import get_user_by_email, get_user_by_id, update_user, get_profile_by_user_id
+    from services.email_service import send_reset_email
     from models import MessageResponse
     from models.profile_models import ProfileResponse
-    create_access_token,
-    create_reset_token,
-    hash_password,
-    invalidate_reset_token,
-    is_token_invalidated,
-    verify_password,
-    verify_reset_token,
-)
-try:
-    from ..services.email_service import send_reset_email
-    from ..services.user_service import get_profile_by_user_id, get_user_by_email
-    from ..core.errors import safe_error, log_and_raise
-except ImportError:
-    from services.email_service import send_reset_email
-    from services.user_service import get_profile_by_user_id, get_user_by_email
     from core.errors import safe_error, log_and_raise
-
-from ..database import users_table, User as UserQuery
+    from core.security import check_rate_limit, log_security_event
+    from database import users_table, User as UserQuery
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

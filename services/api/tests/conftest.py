@@ -29,10 +29,13 @@ os.environ["RESEND_API_KEY"] = "test_resend_key"
 os.environ["SENDGRID_API_KEY"] = ""
 os.environ["FRONTEND_URL"] = "http://test.local"
 
-# Añadir services/api al path de Python
-API_DIR = str(Path(__file__).parent)
+# Añadir services/api y la raíz del monorepo al path de Python
+API_DIR = str(Path(__file__).resolve().parent.parent)
+MONOREPO_ROOT = str(Path(__file__).resolve().parent.parent.parent.parent)
 if API_DIR not in sys.path:
     sys.path.insert(0, API_DIR)
+if MONOREPO_ROOT not in sys.path:
+    sys.path.insert(0, MONOREPO_ROOT)
 
 # ── Configurar db.json en directorio temporal antes de importar database ───
 # TinyDB("db.json") crea el archivo en el cwd. Redirigimos a temp.
@@ -69,6 +72,11 @@ def clean_state():
     profiles_table.truncate()
     from services.auth_service import _invalidated_tokens
     _invalidated_tokens.clear()
+    try:
+        from core.security import rate_limiter
+        rate_limiter.reset()
+    except Exception:
+        pass
     yield
 
 

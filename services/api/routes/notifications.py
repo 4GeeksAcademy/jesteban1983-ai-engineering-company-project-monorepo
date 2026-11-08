@@ -13,12 +13,20 @@ from typing import Optional
 from fastapi import APIRouter, Request, Header, Query, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from models.notification_models import (
-    SSEEventPayload,
-    NotificationPublishRequest,
-    NotificationChannel
-)
-from services.sse_service import sse_bus
+try:
+    from ..models.notification_models import (
+        SSEEventPayload,
+        NotificationPublishRequest,
+        NotificationChannel
+    )
+    from ..services.sse_service import sse_bus
+except (ImportError, ValueError):
+    from models.notification_models import (
+        SSEEventPayload,
+        NotificationPublishRequest,
+        NotificationChannel
+    )
+    from services.sse_service import sse_bus
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 

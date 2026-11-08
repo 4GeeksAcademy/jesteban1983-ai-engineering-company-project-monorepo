@@ -33,7 +33,7 @@ try:
     from ..models import Supplier, SupplierCreate, RateUpdate, StatusUpdate, MessageResponse
     from ..core.cache import cache_get, cache_set, cache_invalidate_prefix
     from ..core.errors import safe_error, log_and_raise
-except ImportError:
+except (ImportError, ValueError):
     from database import suppliers_table, Supplier as SupplierQuery
     from dependencies.auth_deps import get_current_user, get_admin_user
     from models import Supplier, SupplierCreate, RateUpdate, StatusUpdate, MessageResponse

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 try:
     from ..dependencies.auth_deps import get_current_user, get_admin_user
@@ -32,7 +32,7 @@ try:
         get_user_by_id,
         update_user,
     )
-except ImportError:
+except (ImportError, ValueError):
     from dependencies.auth_deps import get_current_user, get_admin_user
     from core.security import check_rate_limit, log_security_event
     from core.errors import safe_error, log_and_raise
@@ -47,12 +47,6 @@ except ImportError:
         get_user_by_id,
         update_user,
     )
-    create_user,
-    delete_user,
-    get_all_users,
-    get_user_by_id,
-    update_user,
-)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -90,11 +84,13 @@ def register_user(user_data: UserCreate, request: Request):
 
     try:
         user = create_user(user_data, profile_data)
+        uid = getattr(user, "id", None) or (user.get("id") if isinstance(user, dict) else "")
+        uemail = getattr(user, "email", None) or (user.get("email") if isinstance(user, dict) else "")
         log_security_event(
             event_type="USER_REGISTERED",
             client_ip=request.client.host if request.client else "127.0.0.1",
-            details=f"Usuario registrado exitosamente con id={user['id']}",
-            user_identifier=user["email"],
+            details=f"Usuario registrado exitosamente con id={uid}",
+            user_identifier=str(uemail),
             success=True
         )
     except ValueError as e:

@@ -1,108 +1,96 @@
-import { calculateTotalInventoryValue, countProductsByCategory } from "@trackflow/logic";
-import { getDemoProducts, getDemoShipments } from "../lib/data";
+import {
+  calculateAverageShipmentDistance,
+  calculateTotalInventoryValue,
+  filterLowStockProducts,
+  findTopCarriers,
+} from "@trackflow/logic";
+import dynamic from "next/dynamic";
+import { HeroSection } from "../components/HeroSection";
+import { KpiBand } from "../components/KpiBand";
+import { ProductCatalog } from "../components/ProductCatalog";
+import { ServiceGrid } from "../components/ServiceGrid";
+import { fetchInventoryItems, apiItemToProduct } from "../lib/inventory-api";
 
-export default function HomePage() {
-  const products = getDemoProducts();
-  const shipments = getDemoShipments();
-  const totalValue = calculateTotalInventoryValue(products);
-  const categoryCounts = countProductsByCategory(products);
+import type { Product, Shipment } from "@trackflow/logic";
+
+// Lazy loading para componentes que están debajo del fold
+const OperationsFlow = dynamic(() =>
+  import("../components/OperationsFlow").then((mod) => mod.OperationsFlow),
+  { loading: () => <div className="h-64 animate-pulse rounded-2xl bg-slate-100" /> }
+);
+const TestimonialsSection = dynamic(() =>
+  import("../components/TestimonialsSection").then((mod) => mod.TestimonialsSection),
+  { loading: () => <div className="h-48 animate-pulse rounded-2xl bg-slate-100" /> }
+);
+const CtaSection = dynamic(() =>
+  import("../components/CtaSection").then((mod) => mod.CtaSection),
+  { loading: () => <div className="h-32 animate-pulse rounded-2xl bg-slate-100" /> }
+);
+
+const fallbackProducts: Product[] = [
+  {
+    id: "prd-001",
+    sku: "ELEC-LAP-15",
+    name: "Laptop 15 pulgadas",
+    category: "Electronics",
+    weightKg: 2.3,
+    dimensions: { lengthCm: 38, widthCm: 25, heightCm: 3 },
+    stockQuantity: 8,
+    minStockThreshold: 10,
+    unitCostUSD: 670,
+    isFragile: true,
+    warehouse: "Zaragoza",
+    status: "Low stock",
+  },
+];
+
+const fallbackShipments: Shipment[] = [
+  {
+    id: "sh-1001",
+    sku: "ELEC-LAP-15",
+    quantity: 1,
+    origin: "Zaragoza",
+    destination: { city: "Madrid", country: "Spain", postalCode: "28001", distanceKm: 320 },
+    priority: "Express",
+    declaredValueUSD: 670,
+    carrier: "SEUR",
+    status: "In transit",
+    createdAt: new Date("2026-06-02T10:00:00.000Z"),
+  },
+];
+
+async function getInventoryData() {
+  try {
+    const items = await fetchInventoryItems();
+    const products: Product[] = items.map(apiItemToProduct) as Product[];
+    return { products, shipments: fallbackShipments };
+  } catch {
+    console.warn("API de inventario no disponible, usando datos mock como fallback");
+    return { products: fallbackProducts, shipments: fallbackShipments };
+  }
+}
+
+export default async function Home() {
+  const { products, shipments } = await getInventoryData();
+  const lowStockProducts = filterLowStockProducts(products);
+  const inventoryValue = calculateTotalInventoryValue(products);
+  const avgDistance = calculateAverageShipmentDistance(shipments);
+  const topCarriers = findTopCarriers(shipments, 1);
+  const topCarrier = topCarriers[0];
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-8 md:px-8 md:py-10">
-      {/* Hero */}
-      <section className="rounded-3xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-cyan-50 px-6 py-10 shadow-sm md:px-10">
-        <p className="inline-block rounded-full border border-indigo-200 bg-indigo-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-900">
-          Plataforma logística
-        </p>
-        <h1 className="mt-4 text-3xl font-bold text-slate-900 md:text-4xl">
-          TrackFlow — Monitoriza tu inventario en tiempo real
-        </h1>
-        <p className="mt-3 max-w-3xl text-slate-700">
-          Optimiza la selección de transportista por envío, detecta alertas de bajo stock
-          y mantén el control total de tu cadena de suministro.
-        </p>
-      </section>
-
-      {/* KPIs */}
-      <section className="mt-8 grid gap-4 md:grid-cols-3">
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Productos activos</p>
-          <p className="mt-1 text-3xl font-bold text-slate-900">{products.length}</p>
-        </article>
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Valor de inventario</p>
-          <p className="mt-1 text-3xl font-bold text-slate-900">${totalValue.toFixed(2)}</p>
-        </article>
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Envíos en seguimiento</p>
-          <p className="mt-1 text-3xl font-bold text-slate-900">{shipments.length}</p>
-        </article>
-      </section>
-
-      {/* Categorías */}
-      <section className="mt-8">
-        <h2 className="text-xl font-bold text-slate-900">Distribución por categoría</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          {(Object.entries(categoryCounts) as [string, number][]).map(([category, count]) => (
-            <div
-              key={category}
-              className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm"
-            >
-              <p className="text-2xl font-bold text-indigo-600">{count}</p>
-              <p className="mt-1 text-sm text-slate-600">{category}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Productos recientes */}
-      <section className="mt-8">
-        <h2 className="text-xl font-bold text-slate-900">Productos destacados</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {products.slice(0, 6).map((product) => (
-            <article
-              key={product.id}
-              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-slate-900">{product.name}</h3>
-                  <p className="text-xs text-slate-500">SKU: {product.sku}</p>
-                </div>
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    product.status === "Active"
-                      ? "bg-green-100 text-green-800"
-                      : product.status === "Low stock"
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {product.status}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-slate-600">
-                <div>
-                  <span className="text-xs text-slate-400">Stock</span>
-                  <p className="font-medium">{product.stockQuantity} uds</p>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400">Costo unit.</span>
-                  <p className="font-medium">${product.unitCostUSD}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400">Almacén</span>
-                  <p className="font-medium">{product.warehouse}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400">Categoría</span>
-                  <p className="font-medium">{product.category}</p>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+      <HeroSection lowStockCount={lowStockProducts.length} inventoryValueUSD={inventoryValue} />
+      <ServiceGrid />
+      <KpiBand
+        avgDistance={avgDistance}
+        topCarrierName={topCarrier?.carrier ?? "Sin datos"}
+        topCarrierUsage={topCarrier?.count ?? 0}
+      />
+      <OperationsFlow />
+      <ProductCatalog title="Catalogo con alertas de bajo stock" products={lowStockProducts} />
+      <TestimonialsSection />
+      <CtaSection />
     </main>
   );
 }

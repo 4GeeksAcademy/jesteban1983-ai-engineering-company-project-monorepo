@@ -7,4 +7,5 @@ export * from "./trackflow/search";
 export * from "./trackflow/transformations";
 export * from "./trackflow/validations";
 export * from "./trackflow/smokeReport";
+export * from "./trackflow/stock";
 export { createTalentApiClient, talentApi } from "./trackflow/talentApi";

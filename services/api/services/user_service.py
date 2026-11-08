@@ -25,7 +25,7 @@ try:
     from ..models.profile_models import ProfileCreate, ProfileUpdate, ProfileResponse
     from ..models.user_models import UserCreate, UserUpdate, UserResponse
     from .auth_service import hash_password
-except ImportError:
+except (ImportError, ValueError):
     from database import profiles_table, users_table, User as UserQuery
     from models.profile_models import ProfileCreate, ProfileUpdate, ProfileResponse
     from models.user_models import UserCreate, UserUpdate, UserResponse

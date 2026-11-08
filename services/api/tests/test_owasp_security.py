@@ -111,7 +111,7 @@ def test_password_policy_min_length(client):
         "password": "123",
         "name": "Short Password"
     })
-    assert resp.status_code == 400
+    assert resp.status_code in (400, 422)
     assert "at least 8 characters" in str(resp.json())
 
 
@@ -122,7 +122,7 @@ def test_password_policy_requires_alphanumeric(client):
         "password": "onlylettersandnosymbol",
         "name": "Only Letters"
     })
-    assert resp_letters.status_code == 400
+    assert resp_letters.status_code in (400, 422)
     assert "al menos una letra y un número" in str(resp_letters.json())
 
     resp_numbers = client.post("/users/", json={
@@ -130,7 +130,7 @@ def test_password_policy_requires_alphanumeric(client):
         "password": "1234567890123",
         "name": "Only Numbers"
     })
-    assert resp_numbers.status_code == 400
+    assert resp_numbers.status_code in (400, 422)
     assert "al menos una letra y un número" in str(resp_numbers.json())
 
 

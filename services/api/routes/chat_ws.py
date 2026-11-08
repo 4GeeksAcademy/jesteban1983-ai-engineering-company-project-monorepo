@@ -17,18 +17,32 @@ from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status
 from pydantic import ValidationError
 
-from models.chat_models import (
-    ClientWSMessage,
-    ConnectionAckPayload,
-    ChatStartPayload,
-    ChatChunkPayload,
-    ChatCompletePayload,
-    PongPayload,
-    ErrorPayload,
-    ChatSessionHistoryResponse
-)
-from services.websocket_manager import connection_manager
-from services.chat_stream_service import chat_stream_service
+try:
+    from ..models.chat_models import (
+        ClientWSMessage,
+        ConnectionAckPayload,
+        ChatStartPayload,
+        ChatChunkPayload,
+        ChatCompletePayload,
+        PongPayload,
+        ErrorPayload,
+        ChatSessionHistoryResponse
+    )
+    from ..services.websocket_manager import connection_manager
+    from ..services.chat_stream_service import chat_stream_service
+except (ImportError, ValueError):
+    from models.chat_models import (
+        ClientWSMessage,
+        ConnectionAckPayload,
+        ChatStartPayload,
+        ChatChunkPayload,
+        ChatCompletePayload,
+        PongPayload,
+        ErrorPayload,
+        ChatSessionHistoryResponse
+    )
+    from services.websocket_manager import connection_manager
+    from services.chat_stream_service import chat_stream_service
 
 logger = logging.getLogger("api.chat_ws")
 router = APIRouter(tags=["chat"])

@@ -23,7 +23,7 @@ try:
     from ..models.profile_models import ProfileResponse, ProfileUpdate
     from ..services.user_service import get_profile_by_user_id, update_profile
     from ..core.errors import safe_error, log_and_raise
-except ImportError:
+except (ImportError, ValueError):
     from dependencies.auth_deps import get_current_user
     from models.profile_models import ProfileResponse, ProfileUpdate
     from services.user_service import get_profile_by_user_id, update_profile

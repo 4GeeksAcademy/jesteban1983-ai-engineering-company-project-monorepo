@@ -1,0 +1,33 @@
+# ============================================
+# Archivos ignorados por Git en el backend de inventario
+# ============================================
+
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# Base de datos SQLite (solo para desarrollo)
+*.db
+*.sqlite
+
+# Variables de entorno (contiene secrets)
+.env
+
+# Cache de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de distribución
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -36,7 +36,7 @@ try:
         VALID_STATUSES,
     )
     from ..core.cache import cache_get, cache_set, cache_invalidate_prefix
-except ImportError:
+except (ImportError, ValueError):
     from dependencies.auth_deps import get_current_user
     from core.errors import safe_error, log_and_raise
     from models import IncidentCreate, IncidentUpdateStatus, IncidentResponse, SummaryResponse

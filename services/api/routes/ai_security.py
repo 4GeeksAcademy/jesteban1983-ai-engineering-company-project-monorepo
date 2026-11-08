@@ -18,16 +18,28 @@ from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 
-from dependencies.auth_deps import get_current_user, get_admin_user
-from core.ai_guardrails import (
-    prompt_injection_guard,
-    sensitive_data_redactor,
-    hitl_gate,
-    model_output_validator,
-    token_budget_limiter,
-    AIGovernanceRegistry,
-    ThreatLevel,
-)
+try:
+    from ..dependencies.auth_deps import get_current_user, get_admin_user
+    from ..core.ai_guardrails import (
+        prompt_injection_guard,
+        sensitive_data_redactor,
+        hitl_gate,
+        model_output_validator,
+        token_budget_limiter,
+        AIGovernanceRegistry,
+        ThreatLevel,
+    )
+except (ImportError, ValueError):
+    from dependencies.auth_deps import get_current_user, get_admin_user
+    from core.ai_guardrails import (
+        prompt_injection_guard,
+        sensitive_data_redactor,
+        hitl_gate,
+        model_output_validator,
+        token_budget_limiter,
+        AIGovernanceRegistry,
+        ThreatLevel,
+    )
 
 router = APIRouter(prefix="/api/ai-security", tags=["ai-security"])
 

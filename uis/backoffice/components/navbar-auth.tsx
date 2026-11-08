@@ -1,18 +1,8 @@
-// components/navbar-auth.tsx — Barra de navegación con autenticación
+// components/navbar-auth.tsx — Barra de navegación con autenticación y módulos globales
 //
-// Propósito: Renderiza la navegación del backoffice incluyendo
-// enlaces a rutas protegidas y botón de login/logout según el estado.
-//
-// Comportamiento:
-// - Si el usuario está autenticado: muestra Perfil + Cerrar sesión
-// - Si NO está autenticado: muestra Iniciar sesión
-//
-// Telemetría:
-// - page_navigated (O16): cuando el usuario hace clic en un enlace interno
-// - session_expired (O8): cuando el usuario cierra sesión explícitamente
-//
-// NOTA: Este componente es "use client" porque necesita acceder a
-// localStorage para verificar el token y manejar logout.
+// Propósito: Renderiza la navegación integral del backoffice conectando
+// todos los módulos construidos en el curso: Inventario, Proveedores, Incidencias,
+// Pipeline ETL, Telemetría, Knowledge Base, Chat en tiempo real y Seguridad IA.
 
 "use client";
 
@@ -28,23 +18,10 @@ export default function NavbarAuth() {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Verificar estado de autenticación cada vez que cambia la ruta.
-    // Esto asegura que después de hacer login (router.push /suppliers)
-    // el navbar detecte el token y muestre "Cerrar sesión".
     setAuthenticated(isAuthenticated());
   }, [pathname]);
 
-  /**
-   * Maneja el logout con telemetría.
-   *
-   * 1. Track: session_expired con motivo "logout"
-   * 2. Llama a logoutUser() que limpia localStorage y redirige a /login
-   */
   const handleLogout = () => {
-    // Track: sesión cerrada por logout
-    // Nota: No podemos calcular session_duration_seconds real
-    // porque no almacenamos el timestamp de inicio de sesión.
-    // En una versión futura, podríamos guardar loginTimestamp en sessionStorage.
     try {
       const loginTimestamp = sessionStorage.getItem("telemetry_login_timestamp");
       const sessionDuration = loginTimestamp
@@ -56,64 +33,102 @@ export default function NavbarAuth() {
         expired_reason: "logout",
       });
     } catch {
-      // Si falla la telemetría, no bloquear el logout
+      // Ignorar fallo de telemetría en logout
     }
 
     logoutUser();
-    // logoutUser ya redirige a /login
   };
 
+  const navLinks = [
+    { href: "/", label: "Inicio" },
+    { href: "/backoffice/inventory/products", label: "Inventario" },
+    { href: "/suppliers", label: "Proveedores" },
+    { href: "/incidents", label: "Incidencias" },
+    { href: "/pipeline", label: "Pipeline" },
+    { href: "/telemetry", label: "Telemetría" },
+    { href: "/knowledge", label: "RAG" },
+    { href: "/chat", label: "Chat IA" },
+    { href: "/security", label: "Seguridad IA" },
+  ];
+
   return (
-    <header className="border-b border-indigo-100 bg-white/90 backdrop-blur">
-      <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3 md:px-8">
-        <Link href="/" className="text-sm font-bold tracking-wide text-indigo-900">
-          TrackFlow Backoffice
-        </Link>
-        <div className="flex items-center gap-3 text-sm font-medium text-slate-700">
-          <Link className="rounded-lg px-3 py-2 transition hover:bg-indigo-50" href="/">
-            Inicio
-          </Link>
-          <Link
-            className="rounded-lg px-3 py-2 transition hover:bg-indigo-50"
-            href="/incidents"
-          >
-            Incidencias
-          </Link>
-          <Link
-            className="rounded-lg px-3 py-2 transition hover:bg-indigo-50"
-            href="/suppliers"
-          >
-            Proveedores
-          </Link>
-          <Link
-            className="rounded-lg px-3 py-2 transition hover:bg-indigo-50"
-            href="/pipeline"
-          >
-            Pipeline
+    <header className="sticky top-0 z-50 border-b border-indigo-100 bg-white/95 backdrop-blur shadow-xs">
+      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-2.5 md:px-8">
+        <div className="flex items-center gap-6">
+          <Link href="/" className="flex items-center gap-2 text-sm font-bold tracking-tight text-indigo-950">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white font-black text-xs shadow-xs">
+              TF
+            </span>
+            <span className="hidden sm:inline">TrackFlow</span>
           </Link>
 
+          <div className="hidden lg:flex items-center gap-1 text-xs font-medium text-slate-600">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`rounded-lg px-2.5 py-1.5 transition ${
+                    isActive
+                      ? "bg-indigo-50 font-bold text-indigo-700"
+                      : "hover:bg-slate-50 hover:text-indigo-900 text-slate-600"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Links visibles en pantallas medianas */}
+        <div className="flex lg:hidden items-center gap-1 overflow-x-auto max-w-[60vw] py-1 text-xs text-slate-600">
+          <Link href="/backoffice/inventory/products" className="rounded-lg px-2 py-1 hover:bg-slate-100">
+            Inventario
+          </Link>
+          <Link href="/suppliers" className="rounded-lg px-2 py-1 hover:bg-slate-100">
+            Proveedores
+          </Link>
+          <Link href="/incidents" className="rounded-lg px-2 py-1 hover:bg-slate-100">
+            Incidencias
+          </Link>
+          <Link href="/chat" className="rounded-lg px-2 py-1 hover:bg-slate-100 text-indigo-600 font-semibold">
+            Chat
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs font-medium">
           {authenticated ? (
-            <>
+            <div className="flex items-center gap-2">
               <Link
-                className="rounded-lg px-3 py-2 transition hover:bg-indigo-50"
+                className="rounded-lg px-2.5 py-1.5 transition hover:bg-indigo-50 text-slate-700 hidden sm:inline"
                 href="/account/profile"
               >
                 Mi Perfil
               </Link>
               <button
                 onClick={handleLogout}
-                className="rounded-lg border border-red-200 px-3 py-2 text-red-600 transition hover:bg-red-50"
+                className="rounded-lg border border-red-200 px-3 py-1.5 text-red-600 transition hover:bg-red-50 text-xs font-semibold"
               >
                 Cerrar sesión
               </button>
-            </>
+            </div>
           ) : (
-            <Link
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-white shadow hover:bg-indigo-700 transition"
-              href="/login"
-            >
-              Iniciar sesión
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                className="rounded-lg px-3 py-1.5 text-slate-700 hover:bg-slate-100 transition hidden sm:inline"
+                href="/register"
+              >
+                Registro
+              </Link>
+              <Link
+                className="rounded-lg bg-indigo-600 px-3.5 py-1.5 text-white shadow-xs hover:bg-indigo-700 transition"
+                href="/login"
+              >
+                Iniciar sesión
+              </Link>
+            </div>
           )}
         </div>
       </nav>

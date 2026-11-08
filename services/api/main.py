@@ -33,7 +33,7 @@ try:
     from .routes.ai_security import router as ai_security_router
     from .core.database import init_db, close_db
     from .core.security import SecurityHeadersMiddleware
-    from .schemas.error import ErrorResponse
+    from .schemas.error import ErrorResponse, ValidationErrorResponse, ValidationErrorDetail
 except ImportError:
     from analyzer import analyze_incidents, build_export_rows, parse_csv_text
     from models import AnalysisResponse, AppInfo, HealthResponse
@@ -52,7 +52,7 @@ except ImportError:
     from routes.ai_security import router as ai_security_router
     from core.database import init_db, close_db
     from core.security import SecurityHeadersMiddleware
-    from schemas.error import ErrorResponse
+    from schemas.error import ErrorResponse, ValidationErrorResponse, ValidationErrorDetail
 
 try:
     from services.tasks import analyze_incidents_task
@@ -151,18 +151,20 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Captura errores de validación Pydantic y devuelve un 422."""
+    """Captura errores de validación Pydantic y devuelve un 422 con detalles por campo."""
     errors = []
+    field_errors = []
     for err in exc.errors():
         field = " → ".join(str(loc) for loc in err.get("loc", []))
         msg = err.get("msg", "Error de validación")
         errors.append(f"{field}: {msg}" if field else msg)
+        field_errors.append(ValidationErrorDetail(field=field, message=msg))
     logger.warning("ValidationError en %s %s: %s", request.method, request.url.path, errors)
     return JSONResponse(
         status_code=422,
-        content=ErrorResponse(
-            detail="Datos inválidos. Revisa los campos marcados.",
-            error_code="VALIDATION_ERROR",
+        content=ValidationErrorResponse(
+            detail=f"Datos inválidos: {'; '.join(errors)}" if errors else "Datos inválidos. Revisa los campos marcados.",
+            errors=field_errors,
             status_code=422,
         ).model_dump(),
     )

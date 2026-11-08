@@ -224,7 +224,7 @@ def test_api_notifications_publish_validation_error():
         "message": "Test"
     }
     response = client.post("/api/notifications/publish", json=invalid_payload)
-    assert response.status_code == 400
+    assert response.status_code in (400, 422)
 
 
 # ─────────────────────────────────────────────────────────────

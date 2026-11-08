@@ -59,11 +59,6 @@ export default function ProfileForm() {
       setLoading(false);
     }
   };
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     loadProfile();
