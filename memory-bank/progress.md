@@ -75,6 +75,7 @@
   - [ ] Paso 8: Validación manual (2 GET seguidos, invalidación tras escritura, Swagger)
   - [ ] Paso 9: CACHING_REPORT.md con mediciones reales
   - [ ] Paso 10: Commit final y PR hacia main
+<<<<<<< HEAD
 - [x] **Hito — Diseño de Pipeline de Desempeño de Negocio (Parte 1 de 3)**:
   - [x] Rama `feature/pipeline-business-performance` creada desde `main`
   - [x] Obtenido CONTEXT-trackflow.md (data-pipelines) del syllabus 4Geeks: entregable "Weekly Warehouse & Client Performance Report", 4 KPIs (Inbound Volume, Outbound Throughput, Stockout Frequency, Discrepancy Rate), grain warehouse×client_id×ISO week, tabla destino `reporting.weekly_warehouse_client_performance` con UNIQUE(warehouse, client_id, week_start)
@@ -116,3 +117,14 @@
   - [x] Actualización de `TimingMiddleware` a middleware ASGI puro en `services/api/main.py` para permitir paso transparente de WebSocket Upgrades y streaming
   - [x] Suite de pruebas automatizadas en `services/api/tests/test_websocket_chat.py` (15/15 pruebas pasadas en pytest cubriendo handshake, heartbeat, streaming, errores y multi-cliente)
   - [x] Verificación de tipos TypeScript (`tsc -p uis/backoffice/tsconfig.json --noEmit` sin errores)
+
+- [x] **Servidor MCP: Herramientas de la Empresa (rama `feature/mcp-server`)**:
+  - [x] Rama `feature/mcp-server` creada e inicializada desde `main` limpia
+  - [x] Estructura creada en `mcps/company-tools/` (`README.md`, `requirements.txt`, `data.py`)
+  - [x] Implementación del servidor en `mcps/company-tools/server.py` con FastMCP (`mcp<2`)
+  - [x] Herramientas de lectura expuestas: `get_inventory_status`, `get_product_by_sku`, `list_company_suppliers`
+  - [x] Recurso de contexto de almacenes expuesto: `trackflow://warehouses/overview`
+  - [x] Prompt reusable expuesto: `inventory-audit-report`
+  - [x] Guardarraíles de seguridad y mutación segura: validación Pydantic, límite blast radius (máx 200), dry-run previo y confirmación explícita en `create_restock_order`, log de auditoría
+  - [x] Tests unitarios superados al 100% en `mcps/company-tools/test_server.py`
+  - [x] Simulación E2E de cliente/agente MCP sobre protocolo stdio exitosa en `mcps/company-tools/agent_simulator.py`
