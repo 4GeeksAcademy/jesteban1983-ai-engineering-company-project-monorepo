@@ -61,8 +61,14 @@ except ImportError:
     verify_password,
     verify_reset_token,
 )
-from ..services.email_service import send_reset_email
-from ..services.user_service import get_profile_by_user_id, get_user_by_email
+try:
+    from ..services.email_service import send_reset_email
+    from ..services.user_service import get_profile_by_user_id, get_user_by_email
+    from ..core.errors import safe_error, log_and_raise
+except ImportError:
+    from services.email_service import send_reset_email
+    from services.user_service import get_profile_by_user_id, get_user_by_email
+    from core.errors import safe_error, log_and_raise
 
 from ..database import users_table, User as UserQuery
 
@@ -135,8 +141,12 @@ def login(credentials: LoginRequest, request: Request):
     # Rate limiting: máx 5 intentos por minuto por IP (mitiga VULN-08)
     check_rate_limit(request, "auth_login", max_requests=5, window_seconds=60)
 
-    # Buscar usuario por email
-    user = get_user_by_email(credentials.email)
+    try:
+        # Buscar usuario por email
+        user = get_user_by_email(credentials.email)
+    except Exception as exc:
+        logger.exception("Error al buscar usuario por email en login")
+        raise safe_error(500, "Error interno. Intenta de nuevo.")
     if user is None:
         log_security_event("LOGIN_FAILED_UNKNOWN_EMAIL", client_ip, f"Email inexistente: {credentials.email}", user_identifier=credentials.email, success=False)
         raise HTTPException(
@@ -146,7 +156,13 @@ def login(credentials: LoginRequest, request: Request):
         )
 
     # Verificar contraseña
-    if not verify_password(credentials.password, user["hashed_password"]):
+    try:
+        password_valid = verify_password(credentials.password, user["hashed_password"])
+    except Exception as exc:
+        logger.exception("Error al verificar contraseña en login")
+        raise safe_error(500, "Error interno. Intenta de nuevo.")
+
+    if not password_valid:
         log_security_event("LOGIN_FAILED_BAD_PASSWORD", client_ip, f"Contraseña errónea para email: {credentials.email}", user_identifier=credentials.email, success=False)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -164,9 +180,13 @@ def login(credentials: LoginRequest, request: Request):
         )
 
     # Crear token JWT
-    token = create_access_token(
-        data={"sub": str(user["id"]), "role": user["role"]}
-    )
+    try:
+        token = create_access_token(
+            data={"sub": str(user["id"]), "role": user["role"]}
+        )
+    except Exception as exc:
+        logger.exception("Error al crear token JWT en login")
+        raise safe_error(500, "Error interno. Intenta de nuevo.")
 
     log_security_event("LOGIN_SUCCESS", client_ip, f"Login exitoso usuario id={user['id']}", user_identifier=credentials.email, success=True)
     return LoginResponse(access_token=token)
@@ -189,7 +209,11 @@ def get_auth_me(current_user: dict = Depends(get_current_user)):
     Retorna:
         AuthMeResponse con email, role, is_active y profile.
     """
-    profile = get_profile_by_user_id(current_user["id"])
+    try:
+        profile = get_profile_by_user_id(current_user["id"])
+    except Exception as exc:
+        logger.exception("Error al obtener perfil en /auth/me")
+        raise safe_error(500, "Error interno. Intenta de nuevo.")
     return AuthMeResponse(
         email=current_user["email"],
         role=current_user["role"],
@@ -212,17 +236,22 @@ def forgot_password(request_body: ForgotPasswordRequest, request: Request):
 
     email = request_body.email.strip().lower()
 
-    # Buscar usuario por email
-    user = get_user_by_email(email)
+    try:
+        # Buscar usuario por email
+        user = get_user_by_email(email)
 
-    if user:
-        # Generar token de restablecimiento
-        reset_token = create_reset_token(user["id"])
+        if user:
+            # Generar token de restablecimiento
+            reset_token = create_reset_token(user["id"])
 
-        # Enviar email (asíncrono — no bloquear la respuesta)
-        send_reset_email(email, reset_token)
+            # Enviar email (asíncrono — no bloquear la respuesta)
+            send_reset_email(email, reset_token)
 
-        logger.info(f"Email de reset enviado a {email}")
+            logger.info(f"Email de reset enviado a {email}")
+    except Exception as exc:
+        logger.exception("Error en forgot-password")
+        # Siempre devolver 200 incluso si falla
+        pass
 
     # Siempre devolver 200
     return MessageResponse(
@@ -263,24 +292,27 @@ def reset_password(request: ResetPasswordRequest):
             detail="Este enlace ya ha sido utilizado. Solicita uno nuevo.",
         )
 
-    # Buscar usuario en la base de datos
-    user = users_table.get(doc_id=user_id)
-    if user is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Este enlace ha expirado o ya ha sido utilizado. Solicita uno nuevo.",
-        )
+    try:
+        # Buscar usuario en la base de datos
+        user = users_table.get(doc_id=user_id)
+        if user is None:
+            raise safe_error(400, "Este enlace ha expirado o ya ha sido utilizado. Solicita uno nuevo.")
 
-    # Hashear nueva contraseña
-    hashed_password = hash_password(request.new_password)
+        # Hashear nueva contraseña
+        hashed_password = hash_password(request.new_password)
 
-    # Actualizar registro del usuario
-    users_table.update({"hashed_password": hashed_password}, doc_ids=[user_id])
+        # Actualizar registro del usuario
+        users_table.update({"hashed_password": hashed_password}, doc_ids=[user_id])
 
-    # Invalidar el token para evitar reutilización
-    invalidate_reset_token(request.token)
+        # Invalidar el token para evitar reutilización
+        invalidate_reset_token(request.token)
 
-    logger.info(f"Contraseña restablecida para user_id={user_id}")
+        logger.info(f"Contraseña restablecida para user_id={user_id}")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Error al restablecer contraseña")
+        raise safe_error(500, "Error interno. Intenta de nuevo.")
 
     return MessageResponse(message="Contraseña actualizada correctamente. Ya puedes iniciar sesión.")
 
@@ -308,17 +340,16 @@ def change_password(
     """
     # Verificar que la contraseña actual es correcta
     if not verify_password(request.current_password, current_user["hashed_password"]):
-        raise HTTPException(
-            status_code=400,
-            detail="La contraseña actual es incorrecta.",
-        )
+        raise safe_error(400, "La contraseña actual es incorrecta.")
 
     # Hashear y actualizar nueva contraseña
-    hashed_password = hash_password(request.new_password)
-
-    user_id = current_user["id"]
-    users_table.update({"hashed_password": hashed_password}, doc_ids=[user_id])
-
-    logger.info(f"Contraseña cambiada para user_id={user_id}")
+    try:
+        hashed_password = hash_password(request.new_password)
+        user_id = current_user["id"]
+        users_table.update({"hashed_password": hashed_password}, doc_ids=[user_id])
+        logger.info(f"Contraseña cambiada para user_id={user_id}")
+    except Exception as exc:
+        logger.exception("Error al cambiar contraseña")
+        raise safe_error(500, "Error interno. Intenta de nuevo.")
 
     return MessageResponse(message="Contraseña actualizada correctamente.")

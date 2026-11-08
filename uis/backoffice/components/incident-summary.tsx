@@ -5,9 +5,10 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { fetchIncidentsSummary } from "@/lib/incident-actions";
-import type { IncidentSummary } from "@/lib/incident-actions";
+import { useAsync } from "@/lib/use-async";
+import { AsyncView } from "@/components/AsyncView";
 
 const STATUS_LABELS: Record<string, string> = {
   open: "Abiertas",
@@ -96,92 +97,58 @@ function MetricCard({ label, value, color }: { label: string; value: number; col
 }
 
 export default function IncidentSummary() {
-  const [summary, setSummary] = useState<IncidentSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: summary, isLoading, error, execute } = useAsync(fetchIncidentsSummary);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await fetchIncidentsSummary();
-        setSummary(data);
-      } catch (err: any) {
-        setError(err?.detail?.detail ?? err?.detail ?? err?.message ?? "Error al cargar resumen");
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
-  if (loading) {
-    return <div className="py-12 text-center text-sm text-slate-500">Cargando resumen...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-        {error}
-      </div>
-    );
-  }
-
-  if (!summary) {
-    return (
-      <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-sm text-slate-500">
-        No hay datos de resumen disponibles.
-      </div>
-    );
-  }
-
-  const total = Object.values(summary.by_status).reduce((a, b) => a + b, 0);
-
-  // Preparar datos para gráficos
-  const statusBars: BarItem[] = Object.entries(summary.by_status).map(([k, v]) => ({
-    label: STATUS_LABELS[k] ?? k,
-    value: v,
-    color: STATUS_COLORS[k]?.split(" ")[0] ?? "bg-slate-500",
-  }));
-
-  const categoryBars: BarItem[] = Object.entries(summary.by_category).map(([k, v]) => ({
-    label: CATEGORY_LABELS[k] ?? k.replace(/_/g, " "),
-    value: v,
-    color: CHART_COLORS[Object.keys(summary.by_category).indexOf(k) % CHART_COLORS.length],
-  }));
-
-  const originBars: BarItem[] = Object.entries(summary.by_origin).map(([k, v]) => ({
-    label: ORIGIN_LABELS[k] ?? k,
-    value: v,
-    color: CHART_COLORS[Object.keys(summary.by_origin).indexOf(k) % CHART_COLORS.length],
-  }));
-
-  const branchBars: BarItem[] = Object.entries(summary.by_branch).map(([k, v]) => ({
-    label: BRANCH_LABELS[k] ?? k.replace(/_/g, " "),
-    value: v,
-    color: CHART_COLORS[Object.keys(summary.by_branch).indexOf(k) % CHART_COLORS.length],
-  }));
+    execute();
+  }, [execute]);
 
   return (
-    <div className="space-y-6">
-      {/* Total */}
-      <MetricCard label="Total incidencias" value={total} color="border-indigo-200 bg-indigo-50" />
+    <AsyncView isLoading={isLoading} error={error} data={summary} onRetry={execute}>
+      {(data) => {
+        const total = Object.values(data.by_status).reduce((a, b) => a + b, 0);
 
-      {/* Tarjetas por estado */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statusBars.map((s) => (
-          <MetricCard key={s.label} label={s.label} value={s.value} />
-        ))}
-      </div>
+        const statusBars: BarItem[] = Object.entries(data.by_status).map(([k, v]) => ({
+          label: STATUS_LABELS[k] ?? k,
+          value: v,
+          color: STATUS_COLORS[k]?.split(" ")[0] ?? "bg-slate-500",
+        }));
 
-      {/* Gráficos */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <BarChart items={statusBars} title="Por estado" />
-        <BarChart items={categoryBars} title="Por categoría" />
-        <BarChart items={originBars} title="Por origen" />
-        <BarChart items={branchBars} title="Por sede" />
-      </div>
-    </div>
+        const categoryBars: BarItem[] = Object.entries(data.by_category).map(([k, v]) => ({
+          label: CATEGORY_LABELS[k] ?? k.replace(/_/g, " "),
+          value: v,
+          color: CHART_COLORS[Object.keys(data.by_category).indexOf(k) % CHART_COLORS.length],
+        }));
+
+        const originBars: BarItem[] = Object.entries(data.by_origin).map(([k, v]) => ({
+          label: ORIGIN_LABELS[k] ?? k,
+          value: v,
+          color: CHART_COLORS[Object.keys(data.by_origin).indexOf(k) % CHART_COLORS.length],
+        }));
+
+        const branchBars: BarItem[] = Object.entries(data.by_branch).map(([k, v]) => ({
+          label: BRANCH_LABELS[k] ?? k.replace(/_/g, " "),
+          value: v,
+          color: CHART_COLORS[Object.keys(data.by_branch).indexOf(k) % CHART_COLORS.length],
+        }));
+
+        return (
+          <div className="space-y-6">
+            <MetricCard label="Total incidencias" value={total} color="border-indigo-200 bg-indigo-50" />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {statusBars.map((s) => (
+                <MetricCard key={s.label} label={s.label} value={s.value} />
+              ))}
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              <BarChart items={statusBars} title="Por estado" />
+              <BarChart items={categoryBars} title="Por categoría" />
+              <BarChart items={originBars} title="Por origen" />
+              <BarChart items={branchBars} title="Por sede" />
+            </div>
+          </div>
+        );
+      }}
+    </AsyncView>
   );
 }

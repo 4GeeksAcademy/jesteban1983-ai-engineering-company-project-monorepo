@@ -4,12 +4,11 @@ import time
 import logging
 
 import csv
+import logging
 from io import StringIO
 
 import traceback
-
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +33,7 @@ try:
     from .routes.ai_security import router as ai_security_router
     from .core.database import init_db, close_db
     from .core.security import SecurityHeadersMiddleware
+    from .schemas.error import ErrorResponse
 except ImportError:
     from analyzer import analyze_incidents, build_export_rows, parse_csv_text
     from models import AnalysisResponse, AppInfo, HealthResponse
@@ -52,6 +52,7 @@ except ImportError:
     from routes.ai_security import router as ai_security_router
     from core.database import init_db, close_db
     from core.security import SecurityHeadersMiddleware
+    from schemas.error import ErrorResponse
 
 try:
     from services.tasks import analyze_incidents_task
@@ -144,21 +145,40 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 
 # ─────────────────────────────────────────────────────────────
-# Manejador global de excepciones
+# Manejadores globales de excepciones
 # NUNCA se devuelven stack traces al cliente (Checklist #16)
 # ─────────────────────────────────────────────────────────────
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Captura errores de validación Pydantic y devuelve un 400 identificando el campo problemático."""
+    """Captura errores de validación Pydantic y devuelve un 422."""
     errors = []
     for err in exc.errors():
         field = " → ".join(str(loc) for loc in err.get("loc", []))
         msg = err.get("msg", "Error de validación")
         errors.append(f"{field}: {msg}" if field else msg)
+    logger.warning("ValidationError en %s %s: %s", request.method, request.url.path, errors)
+    return JSONResponse(
+        status_code=422,
+        content=ErrorResponse(
+            detail="Datos inválidos. Revisa los campos marcados.",
+            error_code="VALIDATION_ERROR",
+            status_code=422,
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    """Captura ValueError → 400."""
+    logger.warning("ValueError en %s %s: %s", request.method, request.url.path, str(exc))
     return JSONResponse(
         status_code=400,
-        content={"detail": errors},
+        content=ErrorResponse(
+            detail="Solicitud inválida.",
+            error_code="INVALID_REQUEST",
+            status_code=400,
+        ).model_dump(),
     )
 
 
@@ -175,12 +195,30 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Captura cualquier excepción no controlada y devuelve 500 sin stack trace."""
-    # Log interno para depuración (no se filtra al cliente)
-    print(f"[ERROR] {request.method} {request.url.path}: {exc}")
-    traceback.print_exc()  # Solo en consola, no en respuesta
+    logger.exception(
+        "Excepción no capturada en %s %s", request.method, request.url.path,
+        exc_info=exc,
+    )
     return JSONResponse(
         status_code=500,
-        content={"detail": "Error interno del servidor"},
+        content=ErrorResponse(
+            detail="Error interno del servidor. Intenta de nuevo.",
+            error_code="INTERNAL_ERROR",
+            status_code=500,
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: Exception):
+    """404 genérico → JSON estructurado."""
+    return JSONResponse(
+        status_code=404,
+        content=ErrorResponse(
+            detail="Recurso no encontrado.",
+            error_code="NOT_FOUND",
+            status_code=404,
+        ).model_dump(),
     )
 
 # Registrar el router de proveedores (Milestone 9)

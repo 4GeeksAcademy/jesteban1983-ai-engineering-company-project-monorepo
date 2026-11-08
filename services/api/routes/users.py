@@ -13,11 +13,14 @@ Rutas:
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 try:
     from ..dependencies.auth_deps import get_current_user, get_admin_user
     from ..core.security import check_rate_limit, log_security_event
+    from ..core.errors import safe_error, log_and_raise
     from ..models import MessageResponse
     from ..models.profile_models import ProfileCreate
     from ..models.user_models import UserCreate, UserResponse, UserRole, UserUpdate
@@ -32,6 +35,7 @@ try:
 except ImportError:
     from dependencies.auth_deps import get_current_user, get_admin_user
     from core.security import check_rate_limit, log_security_event
+    from core.errors import safe_error, log_and_raise
     from models import MessageResponse
     from models.profile_models import ProfileCreate
     from models.user_models import UserCreate, UserResponse, UserRole, UserUpdate
@@ -51,6 +55,8 @@ except ImportError:
 )
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -92,10 +98,11 @@ def register_user(user_data: UserCreate, request: Request):
             success=True
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        )
+        logger.warning("Registro duplicado o inválido: %s", e)
+        raise safe_error(409, str(e))
+    except Exception as exc:
+        logger.exception("Error al crear usuario")
+        raise safe_error(500, "Error interno al registrar usuario.")
 
     return user
 
@@ -112,7 +119,11 @@ def list_users(current_user: dict = Depends(get_admin_user)):
     PROTEGIDO — Requiere rol 'admin' (mitiga enumeración de usuarios OWASP A01).
     No incluye hashed_password en la respuesta.
     """
-    return get_all_users()
+    try:
+        return get_all_users()
+    except Exception as exc:
+        logger.exception("Error al listar usuarios")
+        raise safe_error(500, "Error interno al obtener usuarios.")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -135,17 +146,16 @@ def get_user(user_id: int, request: Request, current_user: dict = Depends(get_cu
             user_identifier=str(current_user["id"]),
             success=False
         )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos para consultar este usuario.",
-        )
+        raise safe_error(403, "No tienes permisos para consultar este usuario.")
 
-    user = get_user_by_id(user_id)
+    try:
+        user = get_user_by_id(user_id)
+    except Exception as exc:
+        logger.exception("Error al obtener usuario %s", user_id)
+        raise safe_error(500, "Error interno.")
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Usuario con id {user_id} no encontrado.",
-        )
+        raise safe_error(404, f"Usuario con id {user_id} no encontrado.")
+
     return user
 
 
@@ -171,10 +181,7 @@ def update_user_endpoint(
     is_owner = current_user["id"] == user_id
 
     if not is_owner and not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos para actualizar este usuario.",
-        )
+        raise safe_error(403, "No tienes permisos para actualizar este usuario.")
 
     # Si NO es admin, bloquear modificación de rol y estado activo
     if not is_admin:
@@ -187,17 +194,16 @@ def update_user_endpoint(
                 user_identifier=str(current_user["id"]),
                 success=False
             )
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Solo administradores pueden modificar el rol o el estado activo de una cuenta.",
-            )
+            raise safe_error(403, "Solo administradores pueden modificar el rol o el estado activo de una cuenta.")
 
-    user = update_user(user_id, update_data)
+    try:
+        user = update_user(user_id, update_data)
+    except Exception as exc:
+        logger.exception("Error al actualizar usuario %s", user_id)
+        raise safe_error(500, "Error interno al actualizar usuario.")
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Usuario con id {user_id} no encontrado.",
-        )
+        raise safe_error(404, f"Usuario con id {user_id} no encontrado.")
+
     return user
 
 
@@ -228,16 +234,15 @@ def delete_user_endpoint(
     """
     # Verificar permisos: solo owner o admin
     if current_user["id"] != user_id and current_user.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos para eliminar este usuario.",
-        )
+        raise safe_error(403, "No tienes permisos para eliminar este usuario.")
 
-    deleted = delete_user(user_id)
+    try:
+        deleted = delete_user(user_id)
+    except Exception as exc:
+        logger.exception("Error al eliminar usuario %s", user_id)
+        raise safe_error(500, "Error interno al eliminar usuario.")
+
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Usuario con id {user_id} no encontrado.",
-        )
+        raise safe_error(404, f"Usuario con id {user_id} no encontrado.")
 
     return MessageResponse(message="Usuario y perfil eliminados correctamente")
